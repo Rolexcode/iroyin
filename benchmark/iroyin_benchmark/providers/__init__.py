@@ -1,0 +1,1 @@
+"""Frozen ASR provider adapters."""

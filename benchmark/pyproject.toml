@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iroyin-benchmark"
+version = "1.0.0"
+description = "Frozen v1.0 ASR and report-integrity benchmark for Ìròyìn"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "datasets==3.6.0",
+  "faster-whisper==1.2.1",
+  "huggingface-hub==0.35.1",
+  "jiwer==4.0.0",
+  "openai==1.109.1",
+  "pydantic==2.11.9",
+  "requests==2.32.5",
+  "soundfile==0.13.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest==8.4.2"]
+
+[project.scripts]
+iroyin-benchmark = "iroyin_benchmark.cli:main"
+
+[tool.setuptools]
+packages = ["iroyin_benchmark", "iroyin_benchmark.providers"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

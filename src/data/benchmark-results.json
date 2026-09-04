@@ -1,0 +1,14 @@
+{
+  "protocolId": "iroyin-benchmark-v1.0",
+  "status": "not_run",
+  "generatedAt": null,
+  "corpus": {
+    "expectedClips": 60,
+    "completedClips": 0
+  },
+  "providers": [
+    { "id": "sahara", "label": "Sahara", "metrics": {} },
+    { "id": "gpt4o-transcribe", "label": "GPT-4o Transcribe", "metrics": {} },
+    { "id": "whisper-large-v3", "label": "Whisper large-v3", "metrics": {} }
+  ]
+}
