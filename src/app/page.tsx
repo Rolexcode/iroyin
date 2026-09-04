@@ -1,24 +1,24 @@
-import { ArrowDown, CheckCircle2, FileCheck2, Mic2, Route } from "lucide-react";
+import { ArrowDown, CheckCircle2, FileCheck2, Languages, Mic2 } from "lucide-react";
 import { ReporterStudio } from "@/components/reporter-studio";
 
 const steps = [
   {
     number: "01",
     icon: Mic2,
-    title: "Speak naturally",
-    copy: "Record or upload in Pidgin + English or Yorùbá + English. Sahara keeps the code-switching intact.",
+    title: "Speak how you speak",
+    copy: "Use Pidgin + English or Yorùbá + English naturally. Sahara transcribes the code-switched speech without asking you to translate yourself first.",
   },
   {
     number: "02",
-    icon: FileCheck2,
-    title: "Check the facts",
-    copy: "Every extracted fact points back to your words. If something critical is missing, Ìròyìn asks only for that detail.",
+    icon: Languages,
+    title: "Bridge the understanding gap",
+    copy: "Ìròyìn is being built to explain difficult information naturally and help turn naturally expressed thoughts into clear standard English.",
   },
   {
     number: "03",
-    icon: Route,
-    title: "Take the next step",
-    copy: "Confirm the report, export a clean copy, and choose from a small set of verified official channels.",
+    icon: FileCheck2,
+    title: "Verify when it matters",
+    copy: "For higher-stakes tasks such as incident reporting, Ìròyìn preserves the source, asks for missing facts, and lets you confirm the final record.",
   },
 ];
 
@@ -28,22 +28,22 @@ export default function Home() {
       <section className="hero-section">
         <div className="site-shell hero-grid">
           <div className="hero-copy">
-            <div className="eyebrow"><span /> Voice-first civic reporting</div>
-            <h1>Say what happened.<br /><em>Keep every fact.</em></h1>
+            <div className="eyebrow"><span /> Code-switching understanding layer</div>
+            <h1>Speak how you speak.<br /><em>Understand anything.</em></h1>
             <p className="hero-lede">
-              Ìròyìn turns code-switched speech into a structured incident report you can inspect, correct, verify, and take to the right channel.
+              Ìròyìn is built for people who think, learn, and communicate across languages. Speak naturally in Pidgin + English or Yorùbá + English without translating yourself for the machine first.
             </p>
             <div className="hero-actions">
-              <a className="button button-primary" href="#report">Start a report <ArrowDown size={17} /></a>
-              <a className="text-link" href="/benchmark">See how we measure accuracy</a>
+              <a className="button button-primary" href="#try-sahara">Try Sahara live <ArrowDown size={17} /></a>
+              <a className="text-link" href="/benchmark">See how we measure meaning</a>
             </div>
-            <ul className="assurance-list" aria-label="Product assurances">
-              <li><CheckCircle2 size={16} /> No facts invented</li>
-              <li><CheckCircle2 size={16} /> Nothing submitted automatically</li>
-              <li><CheckCircle2 size={16} /> Local case data expires in 24 hours</li>
+            <ul className="assurance-list" aria-label="Product principles">
+              <li><CheckCircle2 size={16} /> Natural code-switching first</li>
+              <li><CheckCircle2 size={16} /> Meaning matters beyond word accuracy</li>
+              <li><CheckCircle2 size={16} /> Verification for higher-stakes outputs</li>
             </ul>
           </div>
-          <div id="report" className="studio-anchor">
+          <div id="try-sahara" className="studio-anchor">
             <ReporterStudio />
           </div>
         </div>
@@ -53,10 +53,10 @@ export default function Home() {
         <div className="site-shell">
           <div className="section-heading-row">
             <div>
-              <p className="section-kicker">One focused workflow</p>
-              <h2 id="process-heading">From voice note to usable record</h2>
+              <p className="section-kicker">Beyond translation</p>
+              <h2 id="process-heading">From the language in your head to information you can use.</h2>
             </div>
-            <p>Interactive where accuracy needs it. Quiet everywhere else.</p>
+            <p>Not just language A to language B. Ìròyìn is about preserving meaning across the way people actually speak and understand.</p>
           </div>
           <div className="process-grid">
             {steps.map((step) => {
@@ -76,14 +76,14 @@ export default function Home() {
       <section className="scope-section">
         <div className="site-shell scope-grid">
           <div>
-            <p className="section-kicker light">Built for the first mile</p>
-            <h2>A clear record before the bureaucracy begins.</h2>
+            <p className="section-kicker light">One language layer, different needs</p>
+            <h2>Explain. Express. Report.</h2>
           </div>
           <div className="scope-copy">
             <p>
-              Ìròyìn currently supports tenancy and housing, public infrastructure hazards, and workplace or public-service complaints. That narrow scope keeps routing useful and verifiable.
+              Explain difficult information in the language mix that clicks. Express a naturally spoken thought in clear standard English. When the task is consequential, switch into a verified reporting flow that keeps the original words and asks before filling gaps.
             </p>
-            <a href="/benchmark/methodology">Read the frozen product and benchmark method <span aria-hidden="true">→</span></a>
+            <a href="/benchmark/methodology">Read the frozen benchmark method <span aria-hidden="true">→</span></a>
           </div>
         </div>
       </section>
