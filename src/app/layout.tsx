@@ -17,10 +17,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Ìròyìn — Speak it. Structure it. Act on it.",
+    default: "Ìròyìn — Speak how you speak. Understand anything.",
     template: "%s · Ìròyìn",
   },
-  description: "Turn Nigerian code-switched speech into a verified, structured incident report.",
+  description: "A voice-first understanding layer for Nigerian code-switched speech: explain, express, and report without translating yourself first.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
