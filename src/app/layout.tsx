@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { VoicePlayback } from "@/components/voice-playback";
 import "./globals.css";
 import "./iroyin-polish.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SiteHeader />
         <main id="main-content">{children}</main>
         <SiteFooter />
+        <VoicePlayback />
       </body>
     </html>
   );
