@@ -102,6 +102,8 @@ export const ACCEPTED_AUDIO_TYPES = [
   "audio/mp4",
   "audio/x-m4a",
   "audio/ogg",
+  "audio/ogg;codecs=opus",
   "audio/webm",
+  "audio/webm;codecs=opus",
   "audio/flac",
 ];
