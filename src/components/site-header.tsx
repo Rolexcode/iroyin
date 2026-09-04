@@ -9,7 +9,7 @@ export function SiteHeader() {
           <BrandMark />
         </Link>
         <nav aria-label="Primary navigation" className="main-nav">
-          <Link href="/#report">Make a report</Link>
+          <Link href="/#try-sahara">Try Ìròyìn</Link>
           <Link href="/benchmark">Benchmark lab</Link>
           <Link href="/privacy">Privacy</Link>
         </nav>
