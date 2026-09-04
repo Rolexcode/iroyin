@@ -5,10 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
+  BookOpenText,
   FileAudio,
+  FileCheck2,
+  Languages,
   LockKeyhole,
   Mic,
   Paperclip,
+  RotateCcw,
   Square,
   Trash2,
 } from "lucide-react";
@@ -23,11 +27,18 @@ import {
 } from "@/lib/constants";
 import type { ApiErrorBody, IroyinCase, LanguagePair } from "@/lib/types";
 
-type StudioView = "capture" | "processing" | "clarify";
+type StudioView = "capture" | "processing" | "transcript" | "clarify";
+type TranscriptProvider = "sahara" | "manual";
 type TranscriptionResult = {
   state: "complete" | "processing" | "failed";
   fileId: string | null;
   transcript: string | null;
+};
+
+type ReadyTranscript = {
+  text: string;
+  provider: TranscriptProvider;
+  fileId: string | null;
 };
 
 function formatBytes(bytes: number) {
@@ -69,6 +80,7 @@ export function ReporterStudio() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [processingLabel, setProcessingLabel] = useState("Sending your recording to Sahara…");
+  const [readyTranscript, setReadyTranscript] = useState<ReadyTranscript | null>(null);
   const [caseFile, setCaseFile] = useState<IroyinCase | null>(null);
   const [answer, setAnswer] = useState("");
   const [manualOpen, setManualOpen] = useState(false);
@@ -161,16 +173,18 @@ export function ReporterStudio() {
     router.push(`/report/${encodeURIComponent(created.caseId)}/review`);
   };
 
-  const structureTranscript = async (
-    transcript: string,
-    provider: "sahara" | "manual",
-    fileId?: string | null,
-  ) => {
+  const structureTranscript = async (transcript: ReadyTranscript) => {
+    setView("processing");
     setProcessingLabel("Finding reportable facts and checking the gaps…");
     const response = await fetch("/api/incidents/extract", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript, languagePair, transcriptProvider: provider, transcriptFileId: fileId ?? undefined }),
+      body: JSON.stringify({
+        transcript: transcript.text,
+        languagePair,
+        transcriptProvider: transcript.provider,
+        transcriptFileId: transcript.fileId ?? undefined,
+      }),
     });
     const payload = (await response.json()) as { caseFile?: IroyinCase } & ApiErrorBody;
     if (!response.ok || !payload.caseFile) throw new Error(errorMessage(payload, "The transcript could not be structured."));
@@ -206,26 +220,31 @@ export function ReporterStudio() {
         payload = await pollTranscription(payload.fileId);
       }
       if (payload.state !== "complete" || !payload.transcript) throw new Error("Sahara did not return a usable transcript.");
-      await structureTranscript(payload.transcript, "sahara", payload.fileId);
+      setReadyTranscript({ text: payload.transcript, provider: "sahara", fileId: payload.fileId });
+      setView("transcript");
+      setProcessingLabel("");
     } catch (caught) {
       setView("capture");
       setError(caught instanceof Error ? caught.message : "Something went wrong while processing the recording.");
     }
   };
 
-  const submitManualTranscript = async () => {
+  const submitManualTranscript = () => {
     if (manualTranscript.trim().length < 3) {
       setError("Enter a short transcript before continuing.");
       return;
     }
     setError(null);
-    setView("processing");
-    try {
-      await structureTranscript(manualTranscript.trim(), "manual");
-    } catch (caught) {
-      setView("capture");
-      setError(caught instanceof Error ? caught.message : "The transcript could not be structured.");
-    }
+    setReadyTranscript({ text: manualTranscript.trim(), provider: "manual", fileId: null });
+    setView("transcript");
+  };
+
+  const resetCapture = () => {
+    setReadyTranscript(null);
+    setCaseFile(null);
+    setAudioFile(null);
+    setError(null);
+    setView("capture");
   };
 
   const loadDemo = async () => {
@@ -262,12 +281,12 @@ export function ReporterStudio() {
   };
 
   const clarification = caseFile ? nextClarification(caseFile) : null;
-  const activeStep = view === "capture" ? 1 : view === "processing" ? 2 : 3;
+  const activeStep = view === "capture" ? 1 : view === "processing" ? 2 : view === "transcript" ? 3 : 4;
 
   return (
-    <section className="studio" aria-label="Create an incident report" aria-live="polite">
+    <section className="studio" aria-label="Understand code-switched speech" aria-live="polite">
       <div className="studio-header">
-        <p className="studio-title">New incident report</p>
+        <p className="studio-title">Speak to Ìròyìn</p>
         <span className={`status-pill ${caseFile?.transcriptProvider === "demo" ? "demo" : ""}`}>
           <span className="status-dot" /> {caseFile?.transcriptProvider === "demo" ? "Guided demo" : "Sahara ready"}
         </span>
@@ -281,7 +300,7 @@ export function ReporterStudio() {
           <div className="processing">
             <div>
               <div className="processing-ring" aria-hidden="true" />
-              <h2>Turning speech into a record</h2>
+              <h2>{readyTranscript ? "Preparing your report" : "Listening to how you speak"}</h2>
               <p>{processingLabel}</p>
             </div>
           </div>
@@ -289,9 +308,9 @@ export function ReporterStudio() {
 
         {view === "capture" && (
           <>
-            <h2>Tell us what happened</h2>
-            <p className="studio-intro">Speak naturally. Mix languages the way you normally would.</p>
-            <label className="field-label" htmlFor="language-pair">Language in this recording</label>
+            <h2>Speak how you speak</h2>
+            <p className="studio-intro">Mix languages naturally. Ìròyìn will show you what Sahara heard before deciding what happens next.</p>
+            <label className="field-label" htmlFor="language-pair">Language mix in this recording</label>
             <select id="language-pair" className="select" value={languagePair} onChange={(event) => setLanguagePair(event.target.value as LanguagePair)}>
               {LANGUAGE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
             </select>
@@ -334,24 +353,53 @@ export function ReporterStudio() {
               <button className="button button-primary button-full" type="button" disabled={!audioFile || isRecording} onClick={() => void submitAudio()}>
                 Transcribe with Sahara <ArrowRight size={17} />
               </button>
-              <button className="demo-trigger" type="button" onClick={() => void loadDemo()}>No recording handy? Try the guided demo</button>
-              <button className="demo-trigger" type="button" onClick={() => setManualOpen((open) => !open)}>{manualOpen ? "Hide transcript option" : "Or paste a transcript"}</button>
+              <button className="demo-trigger" type="button" onClick={() => void loadDemo()}>Try the existing report demo</button>
+              <button className="demo-trigger" type="button" onClick={() => setManualOpen((open) => !open)}>{manualOpen ? "Hide transcript option" : "Or paste text / a transcript"}</button>
             </div>
             {manualOpen && (
               <div className="clarification-card">
-                <label className="field-label" htmlFor="manual-transcript">Transcript</label>
-                <textarea id="manual-transcript" className="text-area" value={manualTranscript} onChange={(event) => setManualTranscript(event.target.value)} placeholder="Paste what was said, without adding details…" />
-                <button className="button button-dark button-full" type="button" onClick={() => void submitManualTranscript()}>Structure this transcript <ArrowRight size={17} /></button>
+                <label className="field-label" htmlFor="manual-transcript">Text or transcript</label>
+                <textarea id="manual-transcript" className="text-area" value={manualTranscript} onChange={(event) => setManualTranscript(event.target.value)} placeholder="Paste something you want Ìròyìn to work with…" />
+                <button className="button button-dark button-full" type="button" onClick={submitManualTranscript}>Continue <ArrowRight size={17} /></button>
               </div>
             )}
-            <p className="privacy-note"><LockKeyhole size={15} /> Your case stays in this browser and expires after 24 hours. Provider calls are made only when you continue.</p>
+            <p className="privacy-note"><LockKeyhole size={15} /> Audio is sent only when you continue. Report cases stay in this browser and expire after 24 hours.</p>
+          </>
+        )}
+
+        {view === "transcript" && readyTranscript && (
+          <>
+            <p className="section-kicker">What I heard</p>
+            <h2>Does this still mean what you meant?</h2>
+            <p className="studio-intro">Check the raw transcript first. Ìròyìn will not silently turn it into a report.</p>
+            <blockquote className="transcript-preview">“{readyTranscript.text}”</blockquote>
+            <p className="micro-copy">Transcript source: {readyTranscript.provider === "sahara" ? "Sahara by Intron" : "Manually supplied text"}</p>
+
+            <div className="clarification-card">
+              <span className="question-label">What do you need?</span>
+              <div className="studio-actions">
+                <button className="button button-secondary button-full" type="button" disabled title="Explain is the next transformation being wired in">
+                  <BookOpenText size={17} /> Explain this
+                </button>
+                <button className="button button-secondary button-full" type="button" disabled title="Express is the next transformation being wired in">
+                  <Languages size={17} /> Express this clearly
+                </button>
+                <button className="button button-primary button-full" type="button" onClick={() => void structureTranscript(readyTranscript)}>
+                  <FileCheck2 size={17} /> Make a verified report
+                </button>
+              </div>
+              <p className="micro-copy">Explain and Express are shown as the next product paths; only Report enters the incident clarification workflow in this build.</p>
+            </div>
+
+            {error && <div className="notice error" role="alert"><AlertCircle size={17} /> <span>{error}</span></div>}
+            <button className="demo-trigger" type="button" onClick={resetCapture}><RotateCcw size={15} /> Record something else</button>
           </>
         )}
 
         {view === "clarify" && caseFile && clarification && (
           <>
             <h2>One detail needs you</h2>
-            <p className="studio-intro">We found the incident, but we will not guess a critical fact.</p>
+            <p className="studio-intro">This is the verified-report path. We found the incident, but we will not guess a critical fact.</p>
             <blockquote className="transcript-preview">“{caseFile.transcript}”</blockquote>
             <div className="clarification-card">
               <span className="question-label">Missing critical information</span>
