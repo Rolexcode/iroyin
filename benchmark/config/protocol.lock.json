@@ -1,0 +1,17 @@
+{
+  "protocolId": "iroyin-benchmark-v1.0",
+  "gitTag": "benchmark-protocol-v1.0",
+  "hashAlgorithm": "sha256",
+  "combinedHash": "eb510035d8c003014afc822907676002e680b0ba7ad539da2fd7ec979c5d390f",
+  "combinedHashMethod": "UTF-8 join of '<sha256>  <repo-relative-path>' lines in the listed order, separated by LF with no trailing LF",
+  "files": [
+    { "path": "docs/product-spec-v1.0.md", "sha256": "7e82b3a19719b617df8bfe84eaee238afcd023f9b82bca7cf2395ce7b3fbf3f3" },
+    { "path": "docs/benchmark-protocol.md", "sha256": "f2bfb3235d34175498761ee24b1d93dcf9190afeb34276d739a7865fb1f9187d" },
+    { "path": "benchmark/config/protocol.v1.json", "sha256": "0a327d4c74612907a709aafc9fc5604ffe2e0b33639dac60fc95e816bb2fb200" },
+    { "path": "benchmark/config/report-integrity-weights.v1.json", "sha256": "8d88736c3fcd181ea429ef168876cb6054f8a4c8eeff890132c2bd74cc11821c" },
+    { "path": "benchmark/manifests/selection-plan.v1.json", "sha256": "ac24644a219bac976dcab8ba9202087297dbafcdb677f88a5a9d6fa6cb29d21d" },
+    { "path": "schemas/benchmark-protocol.v1.schema.json", "sha256": "53e3ccf2515518425a4bf7ba5511bdb50688aa118fd8ba5efb69ba959b2814e1" },
+    { "path": "schemas/incident.v1.schema.json", "sha256": "863f01fc478469626c4597b54045ae91dc053344b5aa676137411850bc279963" },
+    { "path": "schemas/benchmark-result.v1.schema.json", "sha256": "e963f7526361f058ede59921a16fa006e40c85249e04135cfd75131f7bf92958" }
+  ]
+}

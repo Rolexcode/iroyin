@@ -1,0 +1,102 @@
+{
+  "$schema": "../../schemas/benchmark-protocol.v1.schema.json",
+  "protocolId": "iroyin-benchmark-v1.0",
+  "version": "1.0.0",
+  "status": "frozen-before-inference",
+  "frozenOn": "2026-09-03",
+  "seed": 260903,
+  "corpus": {
+    "afriSwitch": {
+      "dataset": "intronhealth/AfriSwitch",
+      "total": 36,
+      "configTotals": {
+        "pcm": 18,
+        "yo": 18
+      },
+      "eligibility": {
+        "minimumDurationSeconds": 3,
+        "maximumDurationSeconds": 30,
+        "minimumSwitchPoints": 1
+      },
+      "stratification": {
+        "cmiBuckets": ["low-tertile", "middle-tertile", "high-tertile"],
+        "durationBuckets": ["short-at-or-below-config-median", "long-above-config-median"],
+        "clipsPerStratum": 3
+      }
+    },
+    "customIncidents": {
+      "total": 24,
+      "scenarioTotals": {
+        "tenancy_housing": 8,
+        "infrastructure_hazard": 8,
+        "workplace_public_service": 8
+      },
+      "languagePairTotals": {
+        "pcm_en": 12,
+        "yo_en": 12
+      },
+      "noiseConditionTotals": {
+        "quiet": 12,
+        "everyday_noise": 12
+      },
+      "minimumDistinctSpeakers": 4,
+      "actedOnly": true,
+      "realPersonalDataAllowed": false
+    }
+  },
+  "audio": {
+    "container": "wav",
+    "codec": "pcm_s16le",
+    "sampleRateHz": 16000,
+    "channels": 1,
+    "denoise": false,
+    "trimSilence": false,
+    "normalizeLoudness": false
+  },
+  "providers": {
+    "sahara": {
+      "kind": "remote-api",
+      "endpoint": "https://infer.voice.intron.io/file/v1/upload/sync",
+      "languageMapping": {
+        "pcm_en": "pcm",
+        "yo_en": "yo"
+      },
+      "corrections": true
+    },
+    "gpt4oTranscribe": {
+      "kind": "remote-api",
+      "model": "gpt-4o-transcribe",
+      "temperature": 0,
+      "responseFormat": "json"
+    },
+    "whisperLargeV3": {
+      "kind": "reproducible-compute",
+      "model": "openai/whisper-large-v3",
+      "modelRevision": "06f233fe06e710322aca913c1bc4249a0d71fce1",
+      "runtime": "faster-whisper==1.2.1",
+      "beamSize": 5,
+      "temperature": 0,
+      "conditionOnPreviousText": false,
+      "vadFilter": false,
+      "allowedComputeLocations": ["local", "colab", "kaggle", "cloud-gpu", "other-reproducible-gpu"]
+    }
+  },
+  "extraction": {
+    "model": "gpt-5-mini-2025-08-07",
+    "temperature": 0,
+    "providerBlind": true,
+    "schema": "../../schemas/incident.v1.schema.json",
+    "requireExactEvidenceSpans": true,
+    "inferMissingFacts": false
+  },
+  "metrics": {
+    "wer": ["raw", "normalized"],
+    "cer": ["raw", "normalized"],
+    "switchWindowTokenRadius": 3,
+    "criticalEntityMetrics": ["precision", "recall", "f1"],
+    "reportIntegrityScore": "report-integrity-weights.v1.json",
+    "macroAverageByClip": true,
+    "excludeFailures": false,
+    "asrIntegrityLossClamp": false
+  }
+}

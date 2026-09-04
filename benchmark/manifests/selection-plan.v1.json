@@ -1,0 +1,34 @@
+{
+  "protocolId": "iroyin-benchmark-v1.0",
+  "status": "selection-pending-no-inference",
+  "seed": 260903,
+  "expectedCounts": {
+    "afriSwitch": 36,
+    "customIncidents": 24,
+    "total": 60
+  },
+  "requiredManifestFields": [
+    "clipId",
+    "source",
+    "sourceConfig",
+    "scenario",
+    "languagePair",
+    "noiseCondition",
+    "speakerIdPseudonym",
+    "durationSeconds",
+    "cmi",
+    "switchPointCount",
+    "sourceAudioSha256",
+    "normalizedAudioSha256",
+    "referenceTranscript",
+    "switchTokenIndices",
+    "referenceSlots",
+    "consentOrLicenseBasis"
+  ],
+  "inferenceMayStartOnlyWhen": [
+    "The generated manifest contains exactly 60 unique clip IDs.",
+    "Every normalized audio file hash verifies.",
+    "Every custom clip has consent and complete annotation.",
+    "The protocol Git tag is recorded in the run metadata."
+  ]
+}

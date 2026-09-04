@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroyin.local/schemas/benchmark-result.v1.schema.json",
+  "title": "Ìròyìn public benchmark aggregate",
+  "type": "object",
+  "required": ["protocolId", "status", "generatedAt", "corpus", "providers"],
+  "properties": {
+    "protocolId": { "const": "iroyin-benchmark-v1.0" },
+    "status": { "enum": ["not_run", "complete", "failed_validation"] },
+    "generatedAt": { "type": ["string", "null"], "format": "date-time" },
+    "corpus": {
+      "type": "object",
+      "required": ["expectedClips", "completedClips"],
+      "properties": {
+        "expectedClips": { "const": 60 },
+        "completedClips": { "type": "integer", "minimum": 0, "maximum": 60 }
+      }
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "metrics"],
+        "properties": {
+          "id": { "enum": ["sahara", "gpt4o-transcribe", "whisper-large-v3"] },
+          "label": { "type": "string" },
+          "metrics": { "type": "object" }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

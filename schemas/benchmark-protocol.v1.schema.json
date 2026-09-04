@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroyin.local/schemas/benchmark-protocol.v1.schema.json",
+  "title": "Ìròyìn benchmark protocol",
+  "type": "object",
+  "required": ["protocolId", "version", "status", "corpus", "audio", "providers", "extraction", "metrics"],
+  "properties": {
+    "protocolId": { "const": "iroyin-benchmark-v1.0" },
+    "version": { "const": "1.0.0" },
+    "status": { "const": "frozen-before-inference" },
+    "corpus": { "type": "object" },
+    "audio": { "type": "object" },
+    "providers": { "type": "object" },
+    "extraction": { "type": "object" },
+    "metrics": { "type": "object" }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,32 @@
+{
+  "metricId": "report-integrity-score-v1.0",
+  "version": "1.0.0",
+  "status": "frozen-before-results",
+  "description": "Weighted preservation of report-critical facts, scored deterministically per annotated reference slot.",
+  "weights": {
+    "event_or_action": 5,
+    "negation": 5,
+    "amount_quantity_or_count": 5,
+    "actor_or_affected_person": 5,
+    "incident_type": 4,
+    "location": 4,
+    "time_date_or_duration": 3,
+    "urgency_or_risk": 3,
+    "other_context_or_evidence": 1
+  },
+  "slotScore": {
+    "correct": 1,
+    "missing": 0,
+    "incorrect": 0,
+    "unsupported_hallucination": 0
+  },
+  "rules": [
+    "Score only slots present in the human reference annotation.",
+    "A predicted slot is correct only when its normalized meaning matches the reference and its evidence span occurs verbatim in the evaluated transcript.",
+    "Partial credit is not permitted in v1.0.",
+    "Extra unsupported predicted slots count as hallucinations and are reported separately; they do not add denominator weight.",
+    "RIS equals 100 times the sum of weights for correct slots divided by the sum of weights for all reference slots.",
+    "If a clip has no reference slots, the clip is invalid and the run must fail validation.",
+    "Aggregate RIS is the arithmetic mean of valid per-clip RIS values, with provider failures retained as zero-score clips."
+  ]
+}

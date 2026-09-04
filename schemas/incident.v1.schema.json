@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iroyin.local/schemas/incident.v1.schema.json",
+  "title": "Ìròyìn structured incident",
+  "type": "object",
+  "required": ["schemaVersion", "caseId", "scenario", "transcript", "facts", "missingCriticalFields", "verification"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "caseId": { "type": "string", "minLength": 1 },
+    "scenario": { "enum": ["tenancy_housing", "infrastructure_hazard", "workplace_public_service"] },
+    "transcript": { "type": "string" },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "field", "value", "status", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "field": { "type": "string" },
+          "value": { "type": ["string", "null"] },
+          "status": { "enum": ["extracted", "clarified", "corrected", "missing"] },
+          "evidence": {
+            "type": ["object", "null"],
+            "properties": {
+              "quote": { "type": "string" },
+              "start": { "type": "integer", "minimum": 0 },
+              "end": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["quote", "start", "end"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "missingCriticalFields": { "type": "array", "items": { "type": "string" } },
+    "verification": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["unverified", "verified"] },
+        "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  },
+  "additionalProperties": false
+}
