@@ -2,9 +2,35 @@
 
 import { useEffect } from "react";
 
+type TtsResponse = {
+  audioUrl?: string;
+  provider?: string;
+  voiceLanguage?: string;
+  error?: { message?: string };
+};
+
+function browserFallback(text: string, onEnd: () => void) {
+  if (!("speechSynthesis" in window)) {
+    onEnd();
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 0.95;
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find((voice) => /en[-_](NG|GB)/i.test(voice.lang))
+    ?? voices.find((voice) => /^en/i.test(voice.lang));
+  if (preferred) utterance.voice = preferred;
+  utterance.onend = onEnd;
+  utterance.onerror = onEnd;
+  window.speechSynthesis.speak(utterance);
+}
+
 export function VoicePlayback() {
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    let activeAudio: HTMLAudioElement | null = null;
+    let disposed = false;
 
     const attach = () => {
       const card = document.querySelector<HTMLElement>(".result-card");
@@ -24,31 +50,50 @@ export function VoicePlayback() {
       let speaking = false;
       const reset = () => {
         speaking = false;
+        button.disabled = false;
         button.textContent = "🔊 Listen";
       };
 
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         if (speaking) {
-          window.speechSynthesis.cancel();
+          activeAudio?.pause();
+          activeAudio = null;
+          if ("speechSynthesis" in window) window.speechSynthesis.cancel();
           reset();
           return;
         }
 
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.95;
-        utterance.pitch = 1;
+        button.disabled = true;
+        button.textContent = "Generating local voice…";
 
-        const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find((voice) => /en[-_](NG|GB)/i.test(voice.lang))
-          ?? voices.find((voice) => /^en/i.test(voice.lang));
-        if (preferred) utterance.voice = preferred;
+        try {
+          const response = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+          const payload = (await response.json()) as TtsResponse;
+          if (!response.ok || !payload.audioUrl) throw new Error(payload.error?.message || "TTS failed");
+          if (disposed) return;
 
-        utterance.onend = reset;
-        utterance.onerror = reset;
-        speaking = true;
-        button.textContent = "■ Stop";
-        window.speechSynthesis.speak(utterance);
+          const audio = new Audio(payload.audioUrl);
+          activeAudio = audio;
+          audio.onended = reset;
+          audio.onerror = () => {
+            activeAudio = null;
+            browserFallback(text, reset);
+          };
+          speaking = true;
+          button.disabled = false;
+          button.textContent = payload.voiceLanguage === "yo" ? "■ Stop Yorùbá voice" : payload.voiceLanguage === "pcm" ? "■ Stop Pidgin voice" : "■ Stop voice";
+          await audio.play();
+        } catch {
+          if (disposed) return;
+          speaking = true;
+          button.disabled = false;
+          button.textContent = "■ Stop (browser voice)";
+          browserFallback(text, reset);
+        }
       });
 
       card.insertAdjacentElement("afterend", button);
@@ -59,8 +104,10 @@ export function VoicePlayback() {
     attach();
 
     return () => {
+      disposed = true;
       observer.disconnect();
-      window.speechSynthesis.cancel();
+      activeAudio?.pause();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
   }, []);
 
