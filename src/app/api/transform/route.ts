@@ -76,7 +76,7 @@ function localExpress(text: string, style: ExpressStyle) {
 function styleInstruction(mode: Mode, style: OutputStyle) {
   if (mode === "explain") {
     if (style === "pcm_en") return "Explain in natural Nigerian Pidgin mixed with clear English. Keep technical terms only where useful and explain them in the same response.";
-    if (style === "yo_en") return "Explain in a natural Yoruba-English mix. Use Yoruba where it improves understanding, but keep difficult technical terms in English and explain them clearly.";
+    if (style === "yo_en") return "Explain in a genuinely natural Yorùbá-English mix. Yorùbá must be visibly present throughout the answer, not just in one opening phrase. Use normal Yorùbá words and diacritics where appropriate, while keeping technical terms in English when that is clearer. Do not switch into Nigerian Pidgin unless the source itself must be quoted.";
     return "Explain in plain, simple English suitable for a student. Focus on causal meaning, not dictionary definitions.";
   }
   if (style === "academic_en") return "Rewrite the speaker's intended meaning in concise academic English suitable for an assignment or classroom explanation.";
@@ -84,7 +84,13 @@ function styleInstruction(mode: Mode, style: OutputStyle) {
   return "Rewrite the speaker's intended meaning in clear natural English without making it unnecessarily formal.";
 }
 
-async function groqTransform(text: string, mode: Mode, outputStyle: OutputStyle) {
+function hasYorubaSignal(text: string) {
+  const value = text.toLowerCase();
+  return /[áàéèẹíìóòọúùṣńǹ]/i.test(value)
+    || /\b(ní|pé|àwọn|ṣùgbọ́n|nítorí|ìdí|kí|nígbà|ẹ̀rọ|ìtumọ̀|rọrùn|kókó|wọ́n|ó|jẹ́|sílẹ̀|lára|báyìí)\b/i.test(value);
+}
+
+async function callGroq(text: string, mode: Mode, outputStyle: OutputStyle, correction?: string) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
@@ -99,7 +105,7 @@ async function groqTransform(text: string, mode: Mode, outputStyle: OutputStyle)
       messages: [
         {
           role: "system",
-          content: `You are the semantic transformation layer inside Ìròyìn, a Nigerian code-switching voice product. Your job is to preserve the speaker's intended meaning while making it easier to understand or express. ${styleInstruction(mode, outputStyle)}\n\nImportant rules:\n- Return only the transformed answer, no headings or meta-commentary.\n- Do not answer a different question just because the transcript contains phrases like 'explain am to me'.\n- The transcript may contain small ASR errors. Infer an obvious correction only when surrounding context strongly supports it; never invent facts.\n- Preserve numbers, names, negation, uncertainty and the speaker's actual intent.\n- For Explain, teach the concept rather than merely paraphrasing it.\n- For Express, remove the request for explanation and express the underlying thought itself when that is clearly what the speaker is trying to say.`,
+          content: `You are the semantic transformation layer inside Ìròyìn, a Nigerian code-switching voice product. Your job is to preserve the speaker's intended meaning while making it easier to understand or express. ${styleInstruction(mode, outputStyle)}\n\nImportant rules:\n- Return only the transformed answer, no headings or meta-commentary.\n- Do not answer a different question just because the transcript contains phrases like 'explain am to me'.\n- The transcript may contain small ASR errors. Infer an obvious correction only when surrounding context strongly supports it; never invent facts.\n- Preserve numbers, names, negation, uncertainty and the speaker's actual intent.\n- For Explain, teach the concept rather than merely paraphrasing it.\n- For Express, remove the request for explanation and express the underlying thought itself when that is clearly what the speaker is trying to say.${correction ? `\n- ${correction}` : ""}`,
         },
         { role: "user", content: text },
       ],
@@ -109,8 +115,15 @@ async function groqTransform(text: string, mode: Mode, outputStyle: OutputStyle)
 
   if (!response.ok) throw new Error(`Groq transform failed with ${response.status}`);
   const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  const result = payload.choices?.[0]?.message?.content?.trim();
-  return result || null;
+  return payload.choices?.[0]?.message?.content?.trim() || null;
+}
+
+async function groqTransform(text: string, mode: Mode, outputStyle: OutputStyle) {
+  let result = await callGroq(text, mode, outputStyle);
+  if (result && outputStyle === "yo_en" && !hasYorubaSignal(result)) {
+    result = await callGroq(text, mode, outputStyle, "Your previous attempt did not follow the requested Yorùbá-English register. This answer must contain substantial, natural Yorùbá alongside English across the explanation and must not default to Pidgin-English.");
+  }
+  return result;
 }
 
 export async function POST(request: Request) {
