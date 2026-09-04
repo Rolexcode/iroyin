@@ -9,6 +9,10 @@ export const maxDuration = 150;
 
 const languageSchema = z.enum(["pcm_en", "yo_en"]);
 
+function baseMimeType(type: string) {
+  return type.split(";", 1)[0].trim().toLowerCase();
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.INTRON_API_KEY;
   if (!apiKey) {
@@ -26,7 +30,7 @@ export async function POST(request: Request) {
   if (!languageResult.success) return apiError(400, "language_required", "Choose a supported language pair.");
   if (file.size === 0) return apiError(400, "audio_empty", "The selected audio file is empty.");
   if (file.size > MAX_AUDIO_BYTES) return apiError(413, "audio_too_large", "Audio must be 25 MB or smaller.");
-  if (file.type && !ACCEPTED_AUDIO_TYPES.includes(file.type)) {
+  if (file.type && !ACCEPTED_AUDIO_TYPES.includes(baseMimeType(file.type))) {
     return apiError(415, "audio_type_unsupported", "Use WAV, MP3, MP4, M4A, OGG, WebM, or FLAC audio.");
   }
   try {
