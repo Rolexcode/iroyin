@@ -1,10 +1,18 @@
 # Ìròyìn benchmark runner
 
-This package implements frozen protocol `iroyin-benchmark-v1.0`. It does not contain benchmark results and does not run inference during installation.
+This package preserves frozen protocol `iroyin-benchmark-v1.0` and its pre-inference audit trail. On 5 September 2026, protocol amendment `v1.1` was recorded in `config/protocol.v1.1-amendment.json` to remove paid OpenAI dependencies before benchmark inference. The corpus selection, audio preprocessing and scoring methodology remain unchanged.
+
+The v1.1 comparison set is:
+
+- Sahara by Intron — sponsor / primary product ASR.
+- Whisper large-v3 — comparison ASR, using Groq free-plan access for the zero-cost run.
+- Deepgram Nova-3 — comparison ASR, using available promotional credit.
+
+The original `protocol.v1.json` is intentionally not rewritten. It remains the frozen historical record.
 
 ## Reproducible environment
 
-Use Python 3.11. The lock-worthy package versions are exact in `pyproject.toml`; every run also writes the resolved platform, Python, dependency, model, compute-location, git, and audio-hash metadata.
+Use Python 3.11. Every benchmark result must retain provider/model settings, compute location, git revision and audio hashes.
 
 ```powershell
 cd C:\Users\WINDOWS\OneDrive\Desktop\iroyin\benchmark
@@ -14,44 +22,47 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
 ```
 
-FFmpeg must be available on `PATH` for the one-time, provider-neutral PCM conversion.
+FFmpeg must be available on `PATH` for provider-neutral PCM conversion.
 
 ## Required inputs
 
-1. Generate the deterministic AfriSwitch selection plan with `iroyin-benchmark select-afriswitch`.
-2. Record and annotate the 24 acted incidents described in `custom-clip-design.md`.
-3. Place the private manifest at `manifests/private/manifest.v1.jsonl` and source audio under the ignored `audio/` directory.
-4. Run `iroyin-benchmark validate` until all protocol gates pass.
+1. Generate the deterministic AfriSwitch selection plan using the frozen v1.0 rules.
+2. Record and annotate the 24 acted clips described in `custom-clip-design.md`.
+3. Place the private manifest under `manifests/private/` and source audio under the ignored `audio/` directory.
+4. Validate all protocol gates before scoring or publishing.
 
-## Whisper compute
-
-Run `iroyin-benchmark prepare-whisper --output <directory>` once. This downloads exactly Hugging Face revision `06f233fe06e710322aca913c1bc4249a0d71fce1`, converts it to CTranslate2, and writes a revision receipt. The resulting directory can be used locally or copied to a reproducible Colab, Kaggle, or cloud GPU environment.
-
-Compute location is supplied as run metadata:
-
-```powershell
-iroyin-benchmark run --provider whisper-large-v3 --compute-location colab --whisper-model-dir D:\models\iroyin-whisper-v3
-```
-
-The runner refuses Whisper directories whose receipt does not match the frozen revision.
+AfriSwitch contributes 36 clips: 18 Pidgin-English and 18 Yoruba-English. The custom set contributes 24 clips: 12 Pidgin-English and 12 Yoruba-English. The complete benchmark therefore remains 60 clips.
 
 ## Remote credentials
 
-- `INTRON_API_KEY` for Sahara.
-- `OPENAI_API_KEY` for GPT-4o Transcribe and the frozen downstream extractor.
+- `INTRON_API_KEY` — Sahara ASR.
+- `GROQ_API_KEY` — Groq-hosted Whisper large-v3 and the common downstream semantic layer.
+- `DEEPGRAM_API_KEY` — Deepgram Nova-3 ASR.
 
-Never put keys in a manifest, notebook, result artifact, or command-line argument.
+No OpenAI API key is required by the v1.1 benchmark plan.
+
+Never put keys in a manifest, result artifact, notebook output, client-side bundle or command-line argument.
+
+## Fairness rule
+
+Every audio clip must be sent to all three ASR providers without provider-specific transcript correction. The same human reference is used for WER/CER and switch-window scoring. Any downstream meaning/report evaluation must use the exact same Groq model, prompt, schema and settings for transcripts from all three providers. Provider identity must not be supplied to the downstream model.
+
+Failures remain failures; they are not silently excluded from aggregate reporting.
 
 ## Run sequence
 
-```powershell
-iroyin-benchmark validate
-iroyin-benchmark normalize
-iroyin-benchmark run --provider sahara --compute-location remote-api
-iroyin-benchmark run --provider gpt4o-transcribe --compute-location remote-api
-iroyin-benchmark run --provider whisper-large-v3 --compute-location cloud-gpu --whisper-model-dir D:\models\iroyin-whisper-v3
-iroyin-benchmark score
-iroyin-benchmark publish
+The provider adapters are being migrated to the v1.1 set. Do not run the final AfriSwitch benchmark until all three adapters, the v1.1 runner wiring and provenance checks are complete. Custom clips may be used for integration testing beforehand.
+
+Final sequence:
+
+```text
+validate corpus + hashes
+→ Sahara transcription
+→ Whisper large-v3 transcription
+→ Deepgram Nova-3 transcription
+→ WER/CER + switch-window + critical-entity scoring
+→ provider-blind downstream evaluation through Groq
+→ aggregate + publish
 ```
 
-Run directories are immutable. `publish` succeeds only when all 60 clips have terminal outputs for every provider and every protocol/audio hash verifies. It writes the aggregate artifact consumed by the web app; it never edits UI source values.
+Run directories and raw provider outputs should remain immutable once inference begins. The final report must disclose the v1.1 amendment and the reason for replacing the original paid OpenAI dependencies.
