@@ -30,11 +30,15 @@ function browserFallback(text: string, onEnd: () => void) {
 export function VoicePlayback() {
   useEffect(() => {
     let activeAudio: HTMLAudioElement | null = null;
+    let activeButton: HTMLButtonElement | null = null;
+    let attachedCard: HTMLElement | null = null;
     let disposed = false;
 
     const attach = () => {
       const card = document.querySelector<HTMLElement>(".result-card");
-      if (!card || card.dataset.voicePlaybackAttached === "true") return;
+      if (!card) return;
+      if (activeButton?.isConnected && attachedCard === card) return;
+      if (activeButton?.isConnected && attachedCard !== card) activeButton.remove();
 
       const text = card.innerText.trim();
       if (!text) return;
@@ -97,6 +101,8 @@ export function VoicePlayback() {
       });
 
       card.insertAdjacentElement("afterend", button);
+      activeButton = button;
+      attachedCard = card;
     };
 
     const observer = new MutationObserver(attach);

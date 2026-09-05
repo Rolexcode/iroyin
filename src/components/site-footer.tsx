@@ -7,7 +7,7 @@ export function SiteFooter() {
       <div className="site-shell footer-grid">
         <div>
           <BrandMark compact />
-          <p className="footer-note">Voice-first incident reporting for Nigerian public and legal services.</p>
+          <p className="footer-note">Speak naturally. Understand. Express. Report.</p>
         </div>
         <div className="footer-links" aria-label="Footer navigation">
           <Link href="/benchmark/methodology">Methodology</Link>
@@ -16,7 +16,7 @@ export function SiteFooter() {
             Sahara language support
           </a>
         </div>
-        <p className="footer-disclaimer">Ìròyìn structures information you provide. It does not give legal advice or submit complaints for you.</p>
+        <p className="footer-disclaimer">AI can make mistakes. Review important details.<br />Reports are never submitted automatically.</p>
       </div>
     </footer>
   );
