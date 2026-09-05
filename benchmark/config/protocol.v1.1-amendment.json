@@ -1,0 +1,44 @@
+{
+  "protocolId": "iroyin-benchmark-v1.1",
+  "amends": "iroyin-benchmark-v1.0",
+  "status": "amended-before-benchmark-inference",
+  "amendedOn": "2026-09-05",
+  "reason": "Replace paid OpenAI dependencies with zero-cost-accessible providers while preserving the frozen corpus selection, audio preprocessing and scoring methodology.",
+  "unchanged": [
+    "corpus selection and seed",
+    "36 AfriSwitch clips: 18 pcm + 18 yo",
+    "24 custom acted clips",
+    "audio preprocessing",
+    "WER/CER and switch-window metrics",
+    "critical-entity metrics",
+    "report integrity scoring",
+    "provider-blind downstream comparison"
+  ],
+  "providerChanges": {
+    "remove": ["gpt-4o-transcribe"],
+    "retain": ["sahara"],
+    "add": [
+      {
+        "id": "whisper-large-v3-groq",
+        "provider": "groq",
+        "model": "whisper-large-v3",
+        "kind": "remote-api",
+        "purpose": "comparison ASR"
+      },
+      {
+        "id": "deepgram-nova-3",
+        "provider": "deepgram",
+        "model": "nova-3",
+        "kind": "remote-api",
+        "purpose": "comparison ASR"
+      }
+    ]
+  },
+  "downstreamChange": {
+    "remove": "OpenAI downstream extractor",
+    "replacement": "Groq-hosted semantic model used consistently across every provider transcript",
+    "fairnessRule": "The exact same downstream model, prompt, schema and settings must be applied to Sahara, Whisper and Deepgram transcripts within a benchmark run."
+  },
+  "costConstraint": "No paid OpenAI API dependency is required by protocol v1.1. Runs must remain within available sponsor credits, free-plan limits or promotional credits.",
+  "integrityNote": "The original v1.0 protocol remains untouched for auditability. This amendment must be disclosed in benchmark documentation and final report."
+}
