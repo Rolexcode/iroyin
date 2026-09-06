@@ -11,6 +11,8 @@ type TtsResponse = {
   error?: { message?: string };
 };
 
+const MAX_VOICE_CHUNK = 220;
+
 function inferLanguage(text: string): VoiceLanguage {
   const lower = ` ${text.toLowerCase()} `;
   const hasYoruba = /[ẹọṣàáèéìíòóùú]/i.test(text)
@@ -26,6 +28,51 @@ function inferLanguage(text: string): VoiceLanguage {
   if (hits >= 1) return "pcm";
 
   return "en";
+}
+
+function chunkText(text: string): string[] {
+  const compact = text.replace(/\s+/g, " ").trim();
+  if (!compact) return [];
+  if (compact.length <= MAX_VOICE_CHUNK) return [compact];
+
+  const sentences = compact.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((part) => part.trim()).filter(Boolean) ?? [compact];
+  const chunks: string[] = [];
+  let current = "";
+
+  const pushCurrent = () => {
+    if (current.trim()) chunks.push(current.trim());
+    current = "";
+  };
+
+  for (const sentence of sentences) {
+    if (sentence.length > MAX_VOICE_CHUNK) {
+      pushCurrent();
+      const words = sentence.split(" ");
+      let partial = "";
+      for (const word of words) {
+        const next = partial ? `${partial} ${word}` : word;
+        if (next.length > MAX_VOICE_CHUNK && partial) {
+          chunks.push(partial);
+          partial = word;
+        } else {
+          partial = next;
+        }
+      }
+      if (partial) chunks.push(partial);
+      continue;
+    }
+
+    const next = current ? `${current} ${sentence}` : sentence;
+    if (next.length > MAX_VOICE_CHUNK) {
+      pushCurrent();
+      current = sentence;
+    } else {
+      current = next;
+    }
+  }
+
+  pushCurrent();
+  return chunks;
 }
 
 function browserFallback(text: string, onEnd: () => void) {
@@ -65,7 +112,7 @@ export function VoicePlayback() {
     let activeButton: HTMLButtonElement | null = null;
     let attachedCard: HTMLElement | null = null;
     let disposed = false;
-    let prefetchedVoice: Promise<TtsResponse> | null = null;
+    let firstChunkVoice: Promise<TtsResponse> | null = null;
 
     const attach = () => {
       const card = document.querySelector<HTMLElement>(".result-card");
@@ -76,6 +123,8 @@ export function VoicePlayback() {
       const text = card.innerText.trim();
       if (!text) return;
       const language = inferLanguage(text);
+      const chunks = chunkText(text);
+      if (!chunks.length) return;
 
       card.dataset.voicePlaybackAttached = "true";
       const button = document.createElement("button");
@@ -85,20 +134,45 @@ export function VoicePlayback() {
       button.textContent = language === "yo" ? "🔊 Listen in Yorùbá" : language === "pcm" ? "🔊 Listen in Pidgin" : "🔊 Listen";
       button.setAttribute("aria-label", "Listen to Ìròyìn's response");
 
-      // Start generating as soon as the result appears so the audio is usually ready
-      // by the time the user taps Listen.
-      prefetchedVoice = requestVoice(text, language);
-      prefetchedVoice.catch(() => undefined);
+      // Generate only the first short chunk immediately. Shorter TTS requests return faster,
+      // while the remaining chunks can be generated in parallel once playback starts.
+      firstChunkVoice = requestVoice(chunks[0], language);
+      firstChunkVoice.catch(() => undefined);
 
       let speaking = false;
+      let stopped = false;
+
+      const idleLabel = () => language === "yo" ? "🔊 Listen in Yorùbá" : language === "pcm" ? "🔊 Listen in Pidgin" : "🔊 Listen";
+      const stopLabel = () => language === "yo" ? "■ Stop Yorùbá voice" : language === "pcm" ? "■ Stop Pidgin voice" : "■ Stop voice";
+
       const reset = () => {
         speaking = false;
+        stopped = false;
         button.disabled = false;
-        button.textContent = language === "yo" ? "🔊 Listen in Yorùbá" : language === "pcm" ? "🔊 Listen in Pidgin" : "🔊 Listen";
+        button.textContent = idleLabel();
+      };
+
+      const playChunk = async (payload: TtsResponse): Promise<void> => {
+        if (disposed || stopped || !payload.audioUrl) return;
+        await new Promise<void>((resolve, reject) => {
+          const audio = new Audio(payload.audioUrl);
+          activeAudio = audio;
+          audio.preload = "auto";
+          audio.onended = () => {
+            activeAudio = null;
+            resolve();
+          };
+          audio.onerror = () => {
+            activeAudio = null;
+            reject(new Error("Audio playback failed"));
+          };
+          void audio.play().catch(reject);
+        });
       };
 
       button.addEventListener("click", async () => {
         if (speaking) {
+          stopped = true;
           activeAudio?.pause();
           activeAudio = null;
           if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -106,38 +180,33 @@ export function VoicePlayback() {
           return;
         }
 
-        button.disabled = true;
-        button.textContent = "Preparing voice…";
+        speaking = true;
+        stopped = false;
+        button.disabled = false;
+        button.textContent = "Preparing first words…";
 
         try {
-          const payload = await (prefetchedVoice ?? requestVoice(text, language));
-          if (disposed || !payload.audioUrl) return;
+          const firstPayload = await (firstChunkVoice ?? requestVoice(chunks[0], language));
+          if (disposed || stopped) return;
 
-          const audio = new Audio(payload.audioUrl);
-          activeAudio = audio;
-          audio.preload = "auto";
-          audio.onended = reset;
-          audio.onerror = () => {
-            activeAudio = null;
-            if (language === "en") {
-              browserFallback(text, reset);
-            } else {
-              button.textContent = "Voice unavailable · try again";
-              button.disabled = false;
-              speaking = false;
-              prefetchedVoice = null;
-            }
-          };
-          speaking = true;
-          button.disabled = false;
-          button.textContent = language === "yo" ? "■ Stop Yorùbá voice" : language === "pcm" ? "■ Stop Pidgin voice" : "■ Stop voice";
-          await audio.play();
+          button.textContent = stopLabel();
+
+          // Start all remaining requests just before playback begins. They generate while
+          // the user is already hearing the first chunk, hiding most of the provider latency.
+          const remaining = chunks.slice(1).map((chunk) => requestVoice(chunk, language));
+
+          await playChunk(firstPayload);
+          for (const voicePromise of remaining) {
+            if (disposed || stopped) return;
+            const payload = await voicePromise;
+            await playChunk(payload);
+          }
+
+          if (!stopped) reset();
         } catch {
-          if (disposed) return;
-          prefetchedVoice = null;
+          if (disposed || stopped) return;
+          firstChunkVoice = null;
           if (language === "en") {
-            speaking = true;
-            button.disabled = false;
             button.textContent = "■ Stop (browser voice)";
             browserFallback(text, reset);
           } else {
