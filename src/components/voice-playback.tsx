@@ -25,6 +25,14 @@ function inferLanguage(text: string): VoiceLanguage {
   return "en";
 }
 
+function selectedLanguage(card: HTMLElement, text: string): VoiceLanguage {
+  const style = card.dataset.outputStyle;
+  if (style === "pcm_en") return "pcm";
+  if (style === "yo_en") return "yo";
+  if (style === "simple_en" || style === "clear_en" || style === "academic_en" || style === "professional_en") return "en";
+  return inferLanguage(text);
+}
+
 function spokenVersion(text: string) {
   const clean = text.replace(/\*\*/g, "").replace(/^[#>-]+\s*/gm, "").replace(/^\s*\d+[.)]\s*/gm, "").replace(/\s+/g, " ").trim();
   if (clean.length <= MAX_SPOKEN_CHARS) return clean;
@@ -59,8 +67,6 @@ async function requestVoice(text: string, language: VoiceLanguage): Promise<TtsR
   if (payload.audioUrl) return payload;
   if (!payload.textId) throw new Error("TTS did not return a job id");
 
-  // The queue endpoint returns immediately. Poll small status requests rather than
-  // holding a Vercel function open while Intron synthesizes the whole clip.
   for (let attempt = 0; attempt < 30; attempt += 1) {
     if (attempt > 0) await sleep(attempt < 8 ? 750 : 1200);
     const statusResponse = await fetch(`/api/tts/status?textId=${encodeURIComponent(payload.textId)}`, { cache: "no-store" });
@@ -89,7 +95,7 @@ export function VoicePlayback() {
       const fullText = card.innerText.trim();
       if (!fullText) return;
       const text = spokenVersion(fullText);
-      const language = inferLanguage(fullText);
+      const language = selectedLanguage(card, fullText);
       const idleLabel = () => language === "yo" ? "🔊 Listen in Yorùbá" : language === "pcm" ? "🔊 Listen in Pidgin" : "🔊 Listen";
 
       const button = document.createElement("button");
