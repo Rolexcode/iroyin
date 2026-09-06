@@ -4,15 +4,6 @@ import { useEffect } from "react";
 
 type VoiceLanguage = "pcm" | "yo" | "en";
 
-type TtsResponse = {
-  audioUrl?: string;
-  textId?: string;
-  state?: string;
-  provider?: string;
-  voiceLanguage?: string;
-  error?: { message?: string };
-};
-
 const MAX_SPOKEN_CHARS = 420;
 
 function inferLanguage(text: string): VoiceLanguage {
@@ -54,28 +45,26 @@ function browserFallback(text: string, onEnd: () => void) {
   window.speechSynthesis.speak(utterance);
 }
 
-async function sleep(ms: number) { await new Promise((resolve) => setTimeout(resolve, ms)); }
-
-async function requestVoice(text: string, language: VoiceLanguage): Promise<TtsResponse> {
+async function requestVoice(text: string, language: VoiceLanguage): Promise<{ url: string; elapsedMs: number }> {
+  const startedAt = performance.now();
   const response = await fetch("/api/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, language }),
+    cache: "no-store",
   });
-  const payload = (await response.json()) as TtsResponse;
-  if (!response.ok) throw new Error(payload.error?.message || "TTS failed");
-  if (payload.audioUrl) return payload;
-  if (!payload.textId) throw new Error("TTS did not return a job id");
 
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    if (attempt > 0) await sleep(attempt < 8 ? 750 : 1200);
-    const statusResponse = await fetch(`/api/tts/status?textId=${encodeURIComponent(payload.textId)}`, { cache: "no-store" });
-    const statusPayload = (await statusResponse.json()) as TtsResponse;
-    if (!statusResponse.ok) throw new Error(statusPayload.error?.message || "TTS status failed");
-    if (statusPayload.audioUrl) return { ...statusPayload, voiceLanguage: payload.voiceLanguage };
-    if (statusPayload.state === "failed") throw new Error("TTS generation failed");
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: { message?: string }; stage?: string } | null;
+    const detail = payload?.error?.message || `Voice request failed (${response.status})`;
+    throw new Error(payload?.stage ? `${detail} · ${payload.stage}` : detail);
   }
-  throw new Error("TTS generation timed out");
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.startsWith("audio/")) throw new Error("Voice service returned a non-audio response.");
+  const blob = await response.blob();
+  if (!blob.size) throw new Error("Voice service returned an empty audio file.");
+  return { url: URL.createObjectURL(blob), elapsedMs: Math.round(performance.now() - startedAt) };
 }
 
 export function VoicePlayback() {
@@ -84,7 +73,13 @@ export function VoicePlayback() {
     let activeButton: HTMLButtonElement | null = null;
     let attachedCard: HTMLElement | null = null;
     let disposed = false;
-    let prefetchedVoice: Promise<TtsResponse> | null = null;
+    let voicePromise: Promise<{ url: string; elapsedMs: number }> | null = null;
+    let objectUrl: string | null = null;
+
+    const releaseUrl = () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    };
 
     const attach = () => {
       const card = document.querySelector<HTMLElement>(".result-card");
@@ -105,11 +100,12 @@ export function VoicePlayback() {
       button.textContent = idleLabel();
       button.setAttribute("aria-label", "Listen to Ìròyìn's response");
 
-      prefetchedVoice = requestVoice(text, language);
-      prefetchedVoice.catch(() => undefined);
-
       let speaking = false;
-      const reset = () => { speaking = false; button.disabled = false; button.textContent = idleLabel(); };
+      const reset = () => {
+        speaking = false;
+        button.disabled = false;
+        button.textContent = idleLabel();
+      };
 
       button.addEventListener("click", async () => {
         if (speaking) {
@@ -121,23 +117,36 @@ export function VoicePlayback() {
         }
 
         button.disabled = true;
-        button.textContent = "Preparing voice…";
+        button.textContent = "Generating voice…";
         try {
-          const payload = await (prefetchedVoice ?? requestVoice(text, language));
-          if (disposed || !payload.audioUrl) return;
-          const audio = new Audio(payload.audioUrl);
+          voicePromise ??= requestVoice(text, language);
+          const generated = await voicePromise;
+          if (disposed) {
+            URL.revokeObjectURL(generated.url);
+            return;
+          }
+          releaseUrl();
+          objectUrl = generated.url;
+          const audio = new Audio(objectUrl);
           activeAudio = audio;
           audio.preload = "auto";
           audio.onended = reset;
-          audio.onerror = () => { activeAudio = null; prefetchedVoice = null; language === "en" ? browserFallback(text, reset) : reset(); };
+          audio.onerror = () => {
+            activeAudio = null;
+            voicePromise = null;
+            releaseUrl();
+            button.disabled = false;
+            button.textContent = "Audio could not play · retry";
+          };
           speaking = true;
           button.disabled = false;
           button.textContent = language === "yo" ? "■ Stop Yorùbá voice" : language === "pcm" ? "■ Stop Pidgin voice" : "■ Stop voice";
           await audio.play();
-        } catch {
+        } catch (error) {
           if (disposed) return;
-          prefetchedVoice = null;
-          if (language === "en") {
+          voicePromise = null;
+          const message = error instanceof Error ? error.message : "Voice unavailable";
+          if (language === "en" && message.includes("temporarily unavailable")) {
             speaking = true;
             button.disabled = false;
             button.textContent = "■ Stop (browser voice)";
@@ -145,7 +154,8 @@ export function VoicePlayback() {
           } else {
             speaking = false;
             button.disabled = false;
-            button.textContent = "Voice unavailable · tap to retry";
+            button.textContent = `Voice error · ${message.slice(0, 70)}`;
+            button.title = message;
           }
         }
       });
@@ -158,7 +168,13 @@ export function VoicePlayback() {
     const observer = new MutationObserver(attach);
     observer.observe(document.body, { childList: true, subtree: true });
     attach();
-    return () => { disposed = true; observer.disconnect(); activeAudio?.pause(); if ("speechSynthesis" in window) window.speechSynthesis.cancel(); };
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      activeAudio?.pause();
+      releaseUrl();
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    };
   }, []);
   return null;
 }
