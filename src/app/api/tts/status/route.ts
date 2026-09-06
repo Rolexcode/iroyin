@@ -32,9 +32,17 @@ export async function GET(request: Request) {
     }
 
     const status = payload.data?.processing_status || "";
-    const audioUrl = payload.data?.audio_path;
-    if (status === "TTS_TEXT_AUDIO_GENERATED" && audioUrl) {
-      return NextResponse.json({ state: "ready", audioUrl, provider: "intron", duration: payload.data?.audio_duration_in_seconds ?? null });
+    const upstreamAudio = payload.data?.audio_path;
+    if (status === "TTS_TEXT_AUDIO_GENERATED" && upstreamAudio) {
+      // Never hand the browser Intron's raw audio URL. Some generated URLs can be
+      // HTTP or otherwise unsuitable for direct playback on our HTTPS page. Proxy
+      // it through this app instead so the browser always receives a same-origin URL.
+      return NextResponse.json({
+        state: "ready",
+        audioUrl: `/api/tts/audio?textId=${encodeURIComponent(textId)}`,
+        provider: "intron",
+        duration: payload.data?.audio_duration_in_seconds ?? null,
+      });
     }
     if (status === "TTS_TEXT_AUDIO_PROCESSING_FAILED") {
       return NextResponse.json({ state: "failed", provider: "intron" });
