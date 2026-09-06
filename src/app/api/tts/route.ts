@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const INTRON_TTS_URL = "https://infer.voice.intron.io/tts/v1/generate";
+const INTRON_TTS_ENQUEUE_URL = "https://infer.voice.intron.io/tts/v1/enqueue";
 const MAX_TEXT_LENGTH = 4096;
 
 type TtsRequest = {
@@ -8,12 +8,8 @@ type TtsRequest = {
   language?: "pcm" | "yo" | "en";
 };
 
-type IntronTtsResponse = {
-  data?: {
-    audio_path?: string;
-    audio_duration_in_seconds?: number;
-    processing_status?: string;
-  };
+type IntronQueueResponse = {
+  data?: { text_id?: string };
   message?: string;
   status?: string;
 };
@@ -29,7 +25,7 @@ function inferVoice(text: string, requested?: TtsRequest["language"]) {
 
   const pidginHits = [" na ", " dey ", " wetin ", " abeg ", " no go ", " fit ", " e mean ", " wey ", " una ", " dem ", " am "]
     .filter((token) => ` ${lower} `.includes(token)).length;
-  if (pidginHits >= 2) return { language: "pcm", accent: "pidgin" };
+  if (pidginHits >= 1) return { language: "pcm", accent: "pidgin" };
 
   return { language: "en", accent: "yoruba" };
 }
@@ -48,9 +44,7 @@ export async function POST(request: Request) {
   }
 
   const text = body.text?.trim();
-  if (!text) {
-    return NextResponse.json({ error: { message: "Text is required." } }, { status: 400 });
-  }
+  if (!text) return NextResponse.json({ error: { message: "Text is required." } }, { status: 400 });
   if (text.length > MAX_TEXT_LENGTH) {
     return NextResponse.json({ error: { message: "That response is too long to speak at once." } }, { status: 400 });
   }
@@ -58,7 +52,7 @@ export async function POST(request: Request) {
   const voice = inferVoice(text, body.language);
 
   try {
-    const response = await fetch(INTRON_TTS_URL, {
+    const response = await fetch(INTRON_TTS_ENQUEUE_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -74,23 +68,23 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
 
-    const payload = (await response.json().catch(() => ({}))) as IntronTtsResponse;
-    const audioUrl = payload.data?.audio_path;
+    const payload = (await response.json().catch(() => ({}))) as IntronQueueResponse;
+    const textId = payload.data?.text_id;
 
-    if (!response.ok || !audioUrl) {
+    if (!response.ok || !textId) {
       return NextResponse.json(
-        { error: { message: payload.message || "Intron could not generate speech." }, provider: "intron" },
+        { error: { message: payload.message || "Intron could not queue speech." }, provider: "intron" },
         { status: response.status >= 400 ? response.status : 502 },
       );
     }
 
     return NextResponse.json({
-      audioUrl,
+      textId,
+      state: "processing",
       provider: "intron",
       voiceLanguage: voice.language,
       voiceAccent: voice.accent,
-      duration: payload.data?.audio_duration_in_seconds ?? null,
-    });
+    }, { status: 202 });
   } catch {
     return NextResponse.json(
       { error: { message: "Intron TTS is temporarily unavailable." }, provider: "intron" },
