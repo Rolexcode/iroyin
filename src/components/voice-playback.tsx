@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 type VoiceLanguage = "pcm" | "yo" | "en";
-type QueueResponse = { textId?: string; error?: { message?: string }; voiceLanguage?: string; state?: string };
+type QueueResponse = { textId?: string; error?: { message?: string }; voiceLanguage?: string; state?: string; stage?: string };
 type StatusResponse = { state?: "processing" | "ready" | "failed"; error?: { message?: string }; upstreamStatus?: string };
 type PreparedVoice = { kind: "audio"; url: string } | { kind: "job"; textId: string };
 
@@ -36,27 +36,12 @@ function spokenVersion(text: string) {
   if (clean.length <= MAX_SPOKEN_CHARS) return clean;
   const candidate = clean.slice(0, MAX_SPOKEN_CHARS);
   const lastSentence = Math.max(candidate.lastIndexOf(". "), candidate.lastIndexOf("? "), candidate.lastIndexOf("! "));
-  return `${(lastSentence > 140 ? candidate.slice(0, lastSentence + 1) : candidate).trim()}`;
+  return (lastSentence > 140 ? candidate.slice(0, lastSentence + 1) : candidate).trim();
 }
 
-function browserFallback(text: string, language: VoiceLanguage, onEnd: () => void) {
-  if (!("speechSynthesis" in window)) return false;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.92;
-  utterance.lang = language === "yo" ? "yo-NG" : language === "pcm" ? "en-NG" : "en-NG";
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = language === "yo"
-    ? voices.find((voice) => /^yo/i.test(voice.lang))
-    : voices.find((voice) => /en[-_](NG|GB)/i.test(voice.lang)) ?? voices.find((voice) => /^en/i.test(voice.lang));
-  if (preferred) utterance.voice = preferred;
-  utterance.onend = onEnd;
-  utterance.onerror = onEnd;
-  window.speechSynthesis.speak(utterance);
-  return true;
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-async function sleep(ms: number) { await new Promise((resolve) => setTimeout(resolve, ms)); }
 
 async function requestVoice(text: string, language: VoiceLanguage): Promise<PreparedVoice> {
   const response = await fetch("/api/tts", {
@@ -73,22 +58,24 @@ async function requestVoice(text: string, language: VoiceLanguage): Promise<Prep
     return { kind: "audio", url: URL.createObjectURL(blob) };
   }
 
-  const payload = await response.json().catch(() => ({})) as QueueResponse;
-  if (!response.ok || !payload.textId) throw new Error(payload.error?.message || `Voice request failed (${response.status})`);
+  const payload = (await response.json().catch(() => ({}))) as QueueResponse;
+  if (!response.ok || !payload.textId) {
+    const stage = payload.stage ? ` · ${payload.stage}` : "";
+    throw new Error(`${payload.error?.message || `Voice request failed (${response.status})`}${stage}`);
+  }
   return { kind: "job", textId: payload.textId };
 }
 
-async function waitUntilReady(textId: string, onProgress?: (status: string) => void): Promise<void> {
+async function waitUntilReady(textId: string): Promise<void> {
   const started = Date.now();
   let attempt = 0;
   while (Date.now() - started < 150_000) {
     if (attempt > 0) await sleep(attempt < 8 ? 750 : 1800);
     const response = await fetch(`/api/tts/status?textId=${encodeURIComponent(textId)}`, { cache: "no-store" });
-    const payload = await response.json().catch(() => ({})) as StatusResponse;
+    const payload = (await response.json().catch(() => ({}))) as StatusResponse;
     if (!response.ok) throw new Error(payload.error?.message || `Voice status failed (${response.status})`);
     if (payload.state === "ready") return;
     if (payload.state === "failed") throw new Error(payload.error?.message || "Intron could not generate this voice.");
-    onProgress?.(payload.upstreamStatus || "PROCESSING");
     attempt += 1;
   }
   throw new Error("Intron voice is still processing.");
@@ -97,7 +84,7 @@ async function waitUntilReady(textId: string, onProgress?: (status: string) => v
 async function fetchAudioBlob(textId: string): Promise<string> {
   const response = await fetch(`/api/tts/audio?textId=${encodeURIComponent(textId)}`, { cache: "no-store" });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+    const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
     throw new Error(payload?.error?.message || `Audio fetch failed (${response.status})`);
   }
   const contentType = response.headers.get("content-type") || "";
@@ -107,128 +94,163 @@ async function fetchAudioBlob(textId: string): Promise<string> {
   return URL.createObjectURL(blob);
 }
 
+async function prepareVoice(text: string, language: VoiceLanguage): Promise<string> {
+  const prepared = await requestVoice(text, language);
+  if (prepared.kind === "audio") return prepared.url;
+  await waitUntilReady(prepared.textId);
+  return fetchAudioBlob(prepared.textId);
+}
+
 export function VoicePlayback() {
   useEffect(() => {
     let activeAudio: HTMLAudioElement | null = null;
     let activeButton: HTMLButtonElement | null = null;
     let attachedCard: HTMLElement | null = null;
-    let disposed = false;
-    let preparation: Promise<string> | null = null;
     let objectUrl: string | null = null;
+    let disposed = false;
 
-    const releaseUrl = () => { if (objectUrl) URL.revokeObjectURL(objectUrl); objectUrl = null; };
+    const releaseUrl = () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    };
+
+    const stop = () => {
+      if (activeAudio) {
+        activeAudio.pause();
+        activeAudio.currentTime = 0;
+        activeAudio = null;
+      }
+    };
 
     const attach = () => {
       const card = document.querySelector<HTMLElement>(".result-card");
       if (!card) return;
       if (activeButton?.isConnected && attachedCard === card) return;
-      if (activeButton?.isConnected && attachedCard !== card) activeButton.remove();
+
+      stop();
+      releaseUrl();
+      if (activeButton?.isConnected) activeButton.remove();
 
       const fullText = card.innerText.trim();
       if (!fullText) return;
       const text = spokenVersion(fullText);
       const language = selectedLanguage(card, fullText);
-      const idleLabel = () => language === "yo" ? "🔊 Listen in Yorùbá" : language === "pcm" ? "🔊 Listen in Pidgin" : "🔊 Listen";
+      const languageName = language === "yo" ? "Yorùbá" : language === "pcm" ? "Pidgin" : "English";
 
       const button = document.createElement("button");
       button.type = "button";
       button.className = "button button-secondary";
       button.style.marginTop = "12px";
-      button.textContent = idleLabel();
-      button.setAttribute("aria-label", "Listen to Ìròyìn's response");
-
-      const prepare = async () => {
-        const prepared = await requestVoice(text, language);
-        if (prepared.kind === "audio") {
-          releaseUrl();
-          objectUrl = prepared.url;
-          return objectUrl;
-        }
-        await waitUntilReady(prepared.textId, (status) => {
-          if (!disposed && button.isConnected && button.disabled) button.title = `Intron: ${status}`;
-        });
-        const url = await fetchAudioBlob(prepared.textId);
-        releaseUrl();
-        objectUrl = url;
-        return url;
-      };
-
-      // Warm the provider in the background, but never disable the control for
-      // minutes. A user can tap immediately; the same promise is reused.
-      preparation = prepare();
-      preparation.then(() => {
-        if (!disposed && button.isConnected) { button.disabled = false; button.textContent = idleLabel(); button.title = "Voice ready"; }
-      }).catch((error) => {
-        if (!disposed && button.isConnected) {
-          const message = error instanceof Error ? error.message : "Voice unavailable";
-          button.disabled = false;
-          button.textContent = "🔊 Listen (device fallback available)";
-          button.title = `Intron voice unavailable: ${message}`;
-        }
-      });
-
-      let speaking = false;
-      const reset = () => { speaking = false; button.disabled = false; button.textContent = idleLabel(); };
-
-      button.addEventListener("click", async () => {
-        if (speaking) {
-          activeAudio?.pause(); activeAudio = null;
-          if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-          reset(); return;
-        }
-
-        button.disabled = true;
-        button.textContent = "Loading voice…";
-        try {
-          if (!preparation) preparation = prepare();
-          const url = await Promise.race([
-            preparation,
-            sleep(12_000).then(() => { throw new Error("Intron is still preparing the voice."); }),
-          ]);
-          if (disposed) return;
-          const audio = new Audio(url);
-          activeAudio = audio;
-          audio.preload = "auto";
-          audio.onended = reset;
-          audio.onerror = () => {
-            activeAudio = null;
-            const fallback = browserFallback(text, language, reset);
-            if (!fallback) { button.disabled = false; button.textContent = "Audio could not play · retry"; }
-          };
-          speaking = true;
-          button.disabled = false;
-          button.textContent = language === "yo" ? "■ Stop Yorùbá voice" : language === "pcm" ? "■ Stop Pidgin voice" : "■ Stop voice";
-          await audio.play();
-        } catch {
-          if (disposed) return;
-          const fallback = browserFallback(text, language, reset);
-          if (fallback) {
-            speaking = true;
-            button.disabled = false;
-            button.textContent = language === "yo" ? "■ Stop device Yorùbá voice" : language === "pcm" ? "■ Stop device Pidgin voice" : "■ Stop device voice";
-          } else {
-            speaking = false;
-            button.disabled = false;
-            button.textContent = "Voice unavailable · retry";
-          }
-        }
-      });
-
+      button.disabled = true;
+      button.textContent = `Preparing ${languageName} voice…`;
+      button.setAttribute("aria-label", `Play ${languageName} voice`);
+      button.title = "Generating voice with Intron";
       card.insertAdjacentElement("afterend", button);
+
       activeButton = button;
       attachedCard = card;
+
+      // Generate and fully load the audio before enabling Play. On Android Chrome,
+      // audio.play() must happen directly inside a user click; awaiting a network
+      // request first can lose the browser's user-activation permission.
+      prepareVoice(text, language)
+        .then((url) => {
+          if (disposed || !button.isConnected || attachedCard !== card) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          releaseUrl();
+          objectUrl = url;
+          const audio = new Audio(url);
+          audio.preload = "auto";
+          audio.load();
+          activeAudio = audio;
+          button.disabled = false;
+          button.textContent = `▶ Play ${languageName} voice`;
+          button.title = "Voice ready";
+        })
+        .catch((error) => {
+          if (disposed || !button.isConnected) return;
+          const message = error instanceof Error ? error.message : "Voice unavailable";
+          button.disabled = false;
+          button.textContent = "Voice unavailable · retry";
+          button.title = message;
+        });
+
+      button.addEventListener("click", () => {
+        if (!objectUrl) {
+          button.disabled = true;
+          button.textContent = `Preparing ${languageName} voice…`;
+          prepareVoice(text, language)
+            .then((url) => {
+              if (disposed || !button.isConnected) {
+                URL.revokeObjectURL(url);
+                return;
+              }
+              releaseUrl();
+              objectUrl = url;
+              activeAudio = new Audio(url);
+              activeAudio.preload = "auto";
+              activeAudio.load();
+              button.disabled = false;
+              button.textContent = `▶ Play ${languageName} voice`;
+              button.title = "Voice ready — tap Play";
+            })
+            .catch((error) => {
+              if (disposed || !button.isConnected) return;
+              const message = error instanceof Error ? error.message : "Voice unavailable";
+              button.disabled = false;
+              button.textContent = "Voice unavailable · retry";
+              button.title = message;
+            });
+          return;
+        }
+
+        if (activeAudio && !activeAudio.paused) {
+          activeAudio.pause();
+          activeAudio.currentTime = 0;
+          button.textContent = `▶ Play ${languageName} voice`;
+          return;
+        }
+
+        const audio = activeAudio ?? new Audio(objectUrl);
+        activeAudio = audio;
+        audio.onended = () => {
+          if (button.isConnected) button.textContent = `▶ Play ${languageName} voice`;
+        };
+        audio.onerror = () => {
+          if (button.isConnected) {
+            button.textContent = "Audio could not play · retry";
+            button.title = "The generated audio could not be played on this device.";
+          }
+        };
+
+        // Deliberately no await before play(): this stays in the user's tap event.
+        const playPromise = audio.play();
+        button.textContent = `■ Stop ${languageName} voice`;
+        if (playPromise) {
+          playPromise.catch((error) => {
+            if (!button.isConnected) return;
+            const message = error instanceof Error ? error.message : "Playback was blocked";
+            button.textContent = `▶ Play ${languageName} voice`;
+            button.title = message;
+          });
+        }
+      });
     };
 
     const observer = new MutationObserver(attach);
     observer.observe(document.body, { childList: true, subtree: true });
     attach();
+
     return () => {
       disposed = true;
       observer.disconnect();
-      activeAudio?.pause();
+      stop();
       releaseUrl();
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      activeButton?.remove();
     };
   }, []);
+
   return null;
 }
