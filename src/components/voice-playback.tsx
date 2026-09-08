@@ -48,15 +48,15 @@ async function responseMessage(response: Response) {
   }
 }
 
-function browserSpeak(text: string, language: VoiceLanguage, button: HTMLButtonElement) {
+function browserSpeakEnglish(text: string, button: HTMLButtonElement) {
   if (!("speechSynthesis" in window)) return false;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = language === "yo" ? "yo-NG" : "en-NG";
+  utterance.lang = "en-NG";
   utterance.rate = 0.92;
   const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find((voice) => voice.lang.toLowerCase() === utterance.lang.toLowerCase())
-    ?? voices.find((voice) => /en[-_](NG|GB)/i.test(voice.lang))
+  const preferred = voices.find((voice) => /en[-_](NG)/i.test(voice.lang))
+    ?? voices.find((voice) => /en[-_](GB)/i.test(voice.lang))
     ?? voices.find((voice) => /^en/i.test(voice.lang));
   if (preferred) utterance.voice = preferred;
   utterance.onend = () => { if (button.isConnected) button.textContent = "▶ Listen again"; };
@@ -123,7 +123,7 @@ export function VoicePlayback() {
         try {
           if (!cachedObjectUrl) {
             button.disabled = true;
-            button.textContent = `Generating ${languageName} voice…`;
+            button.textContent = `Generating native ${languageName} voice…`;
             const response = await fetch("/api/tts", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -131,6 +131,11 @@ export function VoicePlayback() {
               cache: "no-store",
             });
             if (!response.ok) throw new Error(await responseMessage(response));
+
+            const provider = response.headers.get("x-iroyin-voice-provider");
+            const returnedLanguage = response.headers.get("x-iroyin-voice-language");
+            if (provider !== "intron") throw new Error("Native Intron voice was not returned.");
+            if (returnedLanguage && returnedLanguage !== language) throw new Error("Voice language did not match the selected output.");
 
             const contentType = response.headers.get("content-type") || "";
             if (!contentType.toLowerCase().startsWith("audio/")) throw new Error("Voice service returned an invalid audio response.");
@@ -150,10 +155,13 @@ export function VoicePlayback() {
           audio.onerror = () => {
             activeAudio = null;
             clearObjectUrl();
-            if (button.isConnected) {
-              button.disabled = false;
-              browserSpeak(text, language, button);
-              button.title = "Intron audio could not play, so Ìròyìn used your device voice as a fallback.";
+            if (!button.isConnected) return;
+            button.disabled = false;
+            if (language === "en" && browserSpeakEnglish(text, button)) {
+              button.title = "Intron audio could not play, so Ìròyìn used the device English voice.";
+            } else {
+              button.textContent = `Native ${languageName} voice unavailable · retry`;
+              button.title = `Ìròyìn will not substitute a generic device voice for ${languageName}.`;
             }
           };
           button.disabled = false;
@@ -165,9 +173,12 @@ export function VoicePlayback() {
           clearObjectUrl();
           const message = error instanceof Error ? error.message : "Voice unavailable";
           button.disabled = false;
-          const fallbackStarted = browserSpeak(text, language, button);
-          if (!fallbackStarted) button.textContent = "Voice unavailable · retry";
-          button.title = fallbackStarted ? `Intron unavailable (${message}). Using device voice fallback.` : message;
+          if (language === "en" && browserSpeakEnglish(text, button)) {
+            button.title = `Intron unavailable (${message}). Using device English voice.`;
+          } else {
+            button.textContent = `Native ${languageName} voice unavailable · retry`;
+            button.title = message;
+          }
         }
       });
     };
