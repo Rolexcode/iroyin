@@ -6,38 +6,27 @@ export const maxDuration = 60;
 const INTRON_TTS_URL = "https://infer.voice.intron.io/tts/v1/generate";
 const MAX_TEXT_LENGTH = 100;
 
-type TtsRequest = {
-  text?: string;
-  language?: "pcm" | "yo" | "en";
-};
+type VoiceLanguage = "pcm" | "yo" | "en";
+type TtsRequest = { text?: string; language?: VoiceLanguage };
 
 type IntronTtsResponse = {
   data?: {
     audio_path?: string;
-    audio_duration_in_seconds?: number;
     processing_status?: string;
   };
   message?: string;
-  status?: string;
 };
 
-function inferVoice(text: string, requested?: TtsRequest["language"]) {
-  if (requested === "yo") return { language: "yo", accent: "yoruba" };
-  if (requested === "pcm") return { language: "pcm", accent: "pidgin" };
-  if (requested === "en") return { language: "en", accent: "yoruba" };
-
-  const lower = ` ${text.toLowerCase()} `;
-  const hasYoruba = /[ẹọṣàáèéìíòóùú]/i.test(text)
-    || /\b(ṣe|jẹ|ní|pé|kò|ó|àwọn|rẹ|yẹn|nígbà|nítorí|ṣùgbọ́n)\b/i.test(text);
-  if (hasYoruba) return { language: "yo", accent: "yoruba" };
-
-  const pidgin = [" na ", " dey ", " wetin ", " abeg ", " no go ", " fit ", " e mean ", " wey ", " una ", " dem ", " am "]
-    .some((token) => lower.includes(token));
-  return pidgin ? { language: "pcm", accent: "pidgin" } : { language: "en", accent: "yoruba" };
+function chooseVoice(requested: VoiceLanguage = "en") {
+  // Intron TTS treats Nigerian varieties as accents on its English voice.
+  // This matches the provider docs/examples for Yoruba and Pidgin accents.
+  if (requested === "pcm") return { requested, language: "en", accent: "pidgin" };
+  if (requested === "yo") return { requested, language: "en", accent: "yoruba" };
+  return { requested, language: "en", accent: "yoruba" };
 }
 
-function errorJson(message: string, stage: string, status: number, extra: Record<string, unknown> = {}) {
-  return NextResponse.json({ error: { message }, stage, ...extra }, { status });
+function errorJson(message: string, stage: string, status: number) {
+  return NextResponse.json({ error: { message }, stage }, { status });
 }
 
 export async function POST(request: Request) {
@@ -53,85 +42,45 @@ export async function POST(request: Request) {
 
   const text = body.text?.trim();
   if (!text) return errorJson("Text is required.", "request", 400);
-  if (text.length > MAX_TEXT_LENGTH) {
-    return errorJson("Voice text chunk is too long.", "request", 400, { maxChars: MAX_TEXT_LENGTH });
-  }
+  if (text.length > MAX_TEXT_LENGTH) return errorJson("Voice text chunk is too long.", "request", 400);
 
-  const voice = inferVoice(text, body.language);
+  const voice = chooseVoice(body.language);
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    const response = await fetch(INTRON_TTS_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text,
+        voice_language: voice.language,
+        voice_accent: voice.accent,
+        voice_gender: "female",
+        output_audio_format: "wav",
+      }),
+      cache: "no-store",
+    });
 
-    let generationResponse: Response;
-    try {
-      generationResponse = await fetch(INTRON_TTS_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text,
-          voice_language: voice.language,
-          voice_accent: voice.accent,
-          voice_gender: "female",
-          output_audio_format: "wav",
-        }),
-        cache: "no-store",
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    const payload = (await generationResponse.json().catch(() => ({}))) as IntronTtsResponse;
+    const payload = (await response.json().catch(() => ({}))) as IntronTtsResponse;
     const audioPath = payload.data?.audio_path?.trim();
 
-    if (!generationResponse.ok || !audioPath) {
-      return errorJson(
-        payload.message || "Intron could not generate speech.",
-        "generate",
-        generationResponse.status >= 400 ? generationResponse.status : 502,
-        {
-          upstreamStatus: payload.data?.processing_status ?? null,
-          upstreamHttpStatus: generationResponse.status,
-          requestedLanguage: voice.language,
-          requestedAccent: voice.accent,
-        },
-      );
+    if (!response.ok || !audioPath) {
+      return errorJson(payload.message || "Intron could not generate speech.", "generate", response.status >= 400 ? response.status : 502);
     }
 
-    let audioUrl: URL;
-    try {
-      audioUrl = new URL(audioPath);
-    } catch {
-      return errorJson("Intron returned an invalid audio location.", "audio-url", 502);
-    }
-
-    if (audioUrl.protocol !== "https:" && audioUrl.protocol !== "http:") {
-      return errorJson("Intron returned an unsupported audio location.", "audio-url", 502);
-    }
-
-    // The audio_path returned by Intron is already the generated media location.
-    // Fetch it as media; do not attach the API bearer token to the storage/CDN request.
+    const audioUrl = new URL(audioPath);
     const audioResponse = await fetch(audioUrl, {
       cache: "no-store",
       redirect: "follow",
       headers: { Accept: "audio/*,*/*" },
     });
 
-    if (!audioResponse.ok) {
-      return errorJson(`Generated voice could not be loaded (${audioResponse.status}).`, "audio-fetch", 502, {
-        requestedLanguage: voice.language,
-        requestedAccent: voice.accent,
-      });
-    }
+    if (!audioResponse.ok) return errorJson("Generated voice could not be loaded.", "audio-fetch", 502);
 
     const audioBytes = await audioResponse.arrayBuffer();
-    if (!audioBytes.byteLength) {
-      return errorJson("Intron returned an empty audio file.", "audio-fetch", 502);
-    }
+    if (!audioBytes.byteLength) return errorJson("Intron returned an empty audio file.", "audio-fetch", 502);
 
     return new Response(audioBytes, {
       status: 200,
@@ -141,19 +90,13 @@ export async function POST(request: Request) {
         "Cache-Control": "no-store",
         "Content-Disposition": "inline; filename=iroyin-voice.wav",
         "X-Iroyin-Voice-Provider": "intron",
-        "X-Iroyin-Voice-Language": voice.language,
+        "X-Iroyin-Voice-Language": voice.requested,
         "X-Iroyin-Voice-Accent": voice.accent,
         "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
-    const timedOut = error instanceof Error && error.name === "AbortError";
-    console.error("Intron TTS generation failed", error);
-    return errorJson(
-      timedOut ? "Voice generation took too long. Please retry." : "Intron TTS is temporarily unavailable.",
-      timedOut ? "timeout" : "network",
-      502,
-      { requestedLanguage: voice.language, requestedAccent: voice.accent },
-    );
+    console.error("Intron TTS failed", error);
+    return errorJson("Intron TTS is temporarily unavailable.", "network", 502);
   }
 }
