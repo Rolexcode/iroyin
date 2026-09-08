@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 type VoiceLanguage = "pcm" | "yo" | "en";
 
-const MAX_SPOKEN_CHARS = 300;
+const MAX_SPOKEN_CHARS = 95;
 
 function inferLanguage(text: string): VoiceLanguage {
   const lower = ` ${text.toLowerCase()} `;
@@ -33,18 +33,37 @@ function spokenVersion(text: string) {
     .trim();
   if (clean.length <= MAX_SPOKEN_CHARS) return clean;
   const candidate = clean.slice(0, MAX_SPOKEN_CHARS);
-  const lastSentence = Math.max(candidate.lastIndexOf(". "), candidate.lastIndexOf("? "), candidate.lastIndexOf("! "));
-  return (lastSentence > 140 ? candidate.slice(0, lastSentence + 1) : candidate).trim();
+  const lastBreak = Math.max(candidate.lastIndexOf(". "), candidate.lastIndexOf("? "), candidate.lastIndexOf("! "), candidate.lastIndexOf(", "), candidate.lastIndexOf("; "));
+  return (lastBreak > 45 ? candidate.slice(0, lastBreak + 1) : candidate).trim();
 }
 
 async function responseMessage(response: Response) {
   try {
-    const payload = await response.clone().json() as { error?: { message?: string }; stage?: string };
+    const payload = await response.clone().json() as { error?: { message?: string }; stage?: string; upstreamHttpStatus?: number };
     const stage = payload.stage ? ` · ${payload.stage}` : "";
-    return `${payload.error?.message || `Voice request failed (${response.status})`}${stage}`;
+    const upstream = payload.upstreamHttpStatus ? ` · upstream ${payload.upstreamHttpStatus}` : "";
+    return `${payload.error?.message || `Voice request failed (${response.status})`}${stage}${upstream}`;
   } catch {
     return `Voice request failed (${response.status})`;
   }
+}
+
+function browserSpeak(text: string, language: VoiceLanguage, button: HTMLButtonElement) {
+  if (!("speechSynthesis" in window)) return false;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = language === "yo" ? "yo-NG" : "en-NG";
+  utterance.rate = 0.92;
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find((voice) => voice.lang.toLowerCase() === utterance.lang.toLowerCase())
+    ?? voices.find((voice) => /en[-_](NG|GB)/i.test(voice.lang))
+    ?? voices.find((voice) => /^en/i.test(voice.lang));
+  if (preferred) utterance.voice = preferred;
+  utterance.onend = () => { if (button.isConnected) button.textContent = "▶ Listen again"; };
+  utterance.onerror = () => { if (button.isConnected) button.textContent = "Voice unavailable · retry"; };
+  button.textContent = "■ Stop voice";
+  window.speechSynthesis.speak(utterance);
+  return true;
 }
 
 export function VoicePlayback() {
@@ -61,6 +80,7 @@ export function VoicePlayback() {
     };
 
     const stop = () => {
+      window.speechSynthesis?.cancel();
       if (!activeAudio) return;
       activeAudio.pause();
       activeAudio.currentTime = 0;
@@ -113,9 +133,7 @@ export function VoicePlayback() {
             if (!response.ok) throw new Error(await responseMessage(response));
 
             const contentType = response.headers.get("content-type") || "";
-            if (!contentType.toLowerCase().startsWith("audio/")) {
-              throw new Error("Voice service returned an invalid audio response.");
-            }
+            if (!contentType.toLowerCase().startsWith("audio/")) throw new Error("Voice service returned an invalid audio response.");
             const blob = await response.blob();
             if (!blob.size) throw new Error("Voice service returned an empty audio file.");
             cachedObjectUrl = URL.createObjectURL(blob);
@@ -134,8 +152,8 @@ export function VoicePlayback() {
             clearObjectUrl();
             if (button.isConnected) {
               button.disabled = false;
-              button.textContent = "Audio could not play · retry";
-              button.title = "The voice file was generated but this browser could not decode it.";
+              browserSpeak(text, language, button);
+              button.title = "Intron audio could not play, so Ìròyìn used your device voice as a fallback.";
             }
           };
           button.disabled = false;
@@ -147,8 +165,9 @@ export function VoicePlayback() {
           clearObjectUrl();
           const message = error instanceof Error ? error.message : "Voice unavailable";
           button.disabled = false;
-          button.textContent = "Voice unavailable · retry";
-          button.title = message;
+          const fallbackStarted = browserSpeak(text, language, button);
+          if (!fallbackStarted) button.textContent = "Voice unavailable · retry";
+          button.title = fallbackStarted ? `Intron unavailable (${message}). Using device voice fallback.` : message;
         }
       });
     };
