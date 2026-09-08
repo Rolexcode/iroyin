@@ -1,49 +1,57 @@
 from __future__ import annotations
 
-import json
+import os
 import time
 from pathlib import Path
 
-from faster_whisper import WhisperModel
+import requests
 
-from .. import WHISPER_REVISION
-
-
-def verify_model_receipt(model_dir: Path) -> None:
-    receipt_path = model_dir / "iroyin-model-revision.json"
-    if not receipt_path.is_file():
-        raise RuntimeError(f"Whisper model receipt missing: {receipt_path}")
-    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    if receipt.get("sourceRevision") != WHISPER_REVISION:
-        raise RuntimeError("Whisper directory does not match the frozen source revision")
-    if receipt.get("computeType") != "float32":
-        raise RuntimeError("Whisper directory must use frozen float32 compute type")
+GROQ_TRANSCRIPTIONS_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
+GROQ_WHISPER_MODEL = "whisper-large-v3"
 
 
-def transcribe(audio_path: Path, model_dir: Path) -> dict:
-    verify_model_receipt(model_dir)
-    model = WhisperModel(str(model_dir), device="auto", compute_type="float32")
+def transcribe(audio_path: Path) -> dict:
+    """Transcribe one frozen benchmark clip with Groq-hosted Whisper large-v3.
+
+    No language hint or transcript prompt is supplied so the comparison model
+    sees the same code-switched audio without provider-specific correction.
+    """
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is required for the Groq Whisper benchmark provider")
+
+    headers = {"Authorization": f"Bearer {api_key}"}
+    data = {
+        "model": GROQ_WHISPER_MODEL,
+        "response_format": "json",
+        "temperature": "0",
+    }
+
     started = time.perf_counter()
-    segments, info = model.transcribe(
-        str(audio_path),
-        beam_size=5,
-        temperature=0,
-        condition_on_previous_text=False,
-        vad_filter=False,
-        language=None,
-    )
-    transcript = " ".join(segment.text.strip() for segment in segments).strip()
+    with audio_path.open("rb") as audio_file:
+        response = requests.post(
+            GROQ_TRANSCRIPTIONS_URL,
+            headers=headers,
+            data=data,
+            files={"file": (audio_path.name, audio_file, "audio/wav")},
+            timeout=120,
+        )
+    latency = time.perf_counter() - started
+    response.raise_for_status()
+    payload = response.json()
+    transcript = str(payload.get("text", "")).strip()
+    if not transcript:
+        raise RuntimeError("Groq Whisper returned an empty transcription")
+
     return {
         "transcript": transcript,
-        "latencySeconds": time.perf_counter() - started,
-        "detectedLanguage": info.language,
+        "latencySeconds": latency,
         "settings": {
-            "modelRevision": WHISPER_REVISION,
-            "beamSize": 5,
+            "provider": "groq",
+            "model": GROQ_WHISPER_MODEL,
+            "responseFormat": "json",
             "temperature": 0,
-            "conditionOnPreviousText": False,
-            "vadFilter": False,
-            "language": None,
-            "computeType": "float32",
+            "languageHint": None,
+            "prompt": None,
         },
     }
