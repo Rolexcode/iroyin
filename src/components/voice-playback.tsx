@@ -3,14 +3,7 @@
 import { useEffect } from "react";
 
 type VoiceLanguage = "pcm" | "yo" | "en";
-type TtsResponse = {
-  audioUrl?: string;
-  provider?: string;
-  voiceLanguage?: VoiceLanguage;
-  voiceAccent?: string;
-  error?: { message?: string };
-};
-
+type TtsResponse = { audioUrl?: string; error?: { message?: string } };
 const MAX_SPOKEN_CHARS = 95;
 
 function inferLanguage(text: string): VoiceLanguage {
@@ -29,77 +22,40 @@ function selectedLanguage(card: HTMLElement, text: string): VoiceLanguage {
 }
 
 function cleanForSpeech(text: string) {
-  return text
-    .replace(/\*\*/g, "")
-    .replace(/^[#>-]+\s*/gm, "")
-    .replace(/^\s*\d+[.)]\s*/gm, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return text.replace(/\*\*/g, "").replace(/^[#>-]+\s*/gm, "").replace(/^\s*\d+[.)]\s*/gm, "").replace(/\s+/g, " ").trim();
 }
 
 function splitForSpeech(text: string) {
   const clean = cleanForSpeech(text);
   if (!clean) return [];
-
   const chunks: string[] = [];
   let remaining = clean;
-
   while (remaining.length > MAX_SPOKEN_CHARS) {
     const candidate = remaining.slice(0, MAX_SPOKEN_CHARS + 1);
-    const punctuationBreak = Math.max(
-      candidate.lastIndexOf(". "),
-      candidate.lastIndexOf("? "),
-      candidate.lastIndexOf("! "),
-      candidate.lastIndexOf("; "),
-      candidate.lastIndexOf(", "),
-    );
+    const punctuationBreak = Math.max(candidate.lastIndexOf(". "), candidate.lastIndexOf("? "), candidate.lastIndexOf("! "), candidate.lastIndexOf("; "), candidate.lastIndexOf(", "));
     const wordBreak = candidate.lastIndexOf(" ");
     const breakAt = punctuationBreak >= 45 ? punctuationBreak + 1 : wordBreak >= 45 ? wordBreak : MAX_SPOKEN_CHARS;
     const chunk = remaining.slice(0, breakAt).trim();
     if (chunk) chunks.push(chunk);
     remaining = remaining.slice(breakAt).trim();
   }
-
   if (remaining) chunks.push(remaining);
   return chunks;
 }
 
-function browserFallback(text: string, language: VoiceLanguage, button: HTMLButtonElement) {
-  if (!("speechSynthesis" in window)) return false;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = language === "yo" ? "yo-NG" : "en-NG";
-  utterance.rate = 0.92;
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find((voice) => voice.lang.toLowerCase() === utterance.lang.toLowerCase())
-    ?? voices.find((voice) => /en[-_](NG|GB)/i.test(voice.lang))
-    ?? voices.find((voice) => /^en/i.test(voice.lang));
-  if (preferred) utterance.voice = preferred;
-  utterance.onend = () => { if (button.isConnected) button.textContent = "▶ Listen again"; };
-  utterance.onerror = () => { if (button.isConnected) button.textContent = "Voice unavailable · retry"; };
-  button.textContent = "■ Stop voice";
-  window.speechSynthesis.speak(utterance);
-  return true;
-}
-
 async function requestNativeVoice(text: string, language: VoiceLanguage) {
-  const response = await fetch("/api/tts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, language }),
-    cache: "no-store",
-  });
+  const response = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, language }), cache: "no-store" });
   const payload = (await response.json()) as TtsResponse;
   if (!response.ok || !payload.audioUrl) throw new Error(payload.error?.message || "Voice generation failed");
   return payload.audioUrl;
 }
 
-function playAudio(audio: HTMLAudioElement) {
-  return new Promise<void>((resolve, reject) => {
-    audio.onended = () => resolve();
-    audio.onerror = () => reject(new Error("Generated audio could not play"));
-    audio.play().catch(reject);
-  });
+async function requestNativeVoiceWithRetry(text: string, language: VoiceLanguage) {
+  try { return await requestNativeVoice(text, language); }
+  catch {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    return requestNativeVoice(text, language);
+  }
 }
 
 export function VoicePlayback() {
@@ -112,26 +68,21 @@ export function VoicePlayback() {
 
     const stop = () => {
       playbackRun += 1;
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-      activeAudio?.pause();
+      if (activeAudio) { activeAudio.pause(); activeAudio.removeAttribute("src"); activeAudio.load(); }
       activeAudio = null;
     };
 
     const attach = () => {
       const card = document.querySelector<HTMLElement>(".result-card");
-      if (!card) return;
-      if (activeButton?.isConnected && attachedCard === card) return;
+      if (!card || (activeButton?.isConnected && attachedCard === card)) return;
       stop();
       activeButton?.remove();
 
       const fullText = card.innerText.trim();
-      if (!fullText) return;
       const chunks = splitForSpeech(fullText);
       if (!chunks.length) return;
-      const cleanText = cleanForSpeech(fullText);
       const language = selectedLanguage(card, fullText);
       const name = language === "yo" ? "Yorùbá" : language === "pcm" ? "Pidgin" : "English";
-
       const button = document.createElement("button");
       button.type = "button";
       button.className = "button button-secondary";
@@ -151,45 +102,53 @@ export function VoicePlayback() {
 
         const run = ++playbackRun;
         button.disabled = true;
-        button.textContent = `Generating ${name} voice…`;
+        button.textContent = `Preparing ${name} voice…`;
 
         try {
-          let nextUrlPromise: Promise<string> | null = requestNativeVoice(chunks[0], language);
-
+          // Generate every short Intron clip before playback. This avoids starting a new
+          // media element after the user's tap, which mobile Chrome can block mid-answer.
+          const urls: string[] = [];
           for (let i = 0; i < chunks.length; i += 1) {
-            const audioUrl = await nextUrlPromise;
             if (disposed || run !== playbackRun) return;
+            button.textContent = chunks.length > 1 ? `Preparing ${name} voice · ${i + 1}/${chunks.length}` : `Preparing ${name} voice…`;
+            urls.push(await requestNativeVoiceWithRetry(chunks[i], language));
+          }
+          if (disposed || run !== playbackRun) return;
 
-            nextUrlPromise = i + 1 < chunks.length
-              ? requestNativeVoice(chunks[i + 1], language)
-              : null;
+          const audio = new Audio();
+          activeAudio = audio;
+          audio.preload = "auto";
+          let index = 0;
 
-            const audio = new Audio(audioUrl);
-            activeAudio = audio;
-            audio.preload = "auto";
-            button.disabled = false;
-            button.textContent = chunks.length > 1
-              ? `■ Stop ${name} voice · ${i + 1}/${chunks.length}`
-              : `■ Stop ${name} voice`;
-
-            await playAudio(audio);
-            if (disposed || run !== playbackRun) return;
+          const finish = () => {
             activeAudio = null;
-          }
-
-          if (button.isConnected && run === playbackRun) {
-            button.textContent = `▶ Listen in ${name}`;
             button.disabled = false;
-          }
+            button.textContent = `▶ Listen in ${name}`;
+          };
+
+          const playCurrent = async () => {
+            if (disposed || run !== playbackRun || index >= urls.length) { if (index >= urls.length) finish(); return; }
+            button.disabled = false;
+            button.textContent = urls.length > 1 ? `■ Stop ${name} voice · ${index + 1}/${urls.length}` : `■ Stop ${name} voice`;
+            audio.src = urls[index];
+            audio.load();
+            await audio.play();
+          };
+
+          audio.onended = () => {
+            if (disposed || run !== playbackRun) return;
+            index += 1;
+            if (index >= urls.length) { finish(); return; }
+            void playCurrent().catch(() => { finish(); });
+          };
+          audio.onerror = () => { if (run === playbackRun) finish(); };
+          await playCurrent();
         } catch (error) {
           if (disposed || run !== playbackRun || !button.isConnected) return;
           stop();
           button.disabled = false;
-          const fallback = browserFallback(cleanText, language, button);
-          button.title = fallback
-            ? "Intron voice could not complete; using the device voice so the demo still has audio."
-            : (error instanceof Error ? error.message : "Voice unavailable");
-          if (!fallback) button.textContent = "Voice unavailable · retry";
+          button.textContent = `Voice unavailable · retry`;
+          button.title = error instanceof Error ? error.message : "Voice unavailable";
         }
       });
     };
@@ -197,13 +156,7 @@ export function VoicePlayback() {
     const observer = new MutationObserver(attach);
     observer.observe(document.body, { childList: true, subtree: true });
     attach();
-
-    return () => {
-      disposed = true;
-      observer.disconnect();
-      stop();
-      activeButton?.remove();
-    };
+    return () => { disposed = true; observer.disconnect(); stop(); activeButton?.remove(); };
   }, []);
 
   return null;
