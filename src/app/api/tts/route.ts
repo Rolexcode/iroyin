@@ -36,77 +36,112 @@ function inferVoice(text: string, requested?: TtsRequest["language"]) {
   return pidgin ? { language: "pcm", accent: "pidgin" } : { language: "en", accent: "yoruba" };
 }
 
+function errorJson(message: string, stage: string, status: number, extra: Record<string, unknown> = {}) {
+  return NextResponse.json({ error: { message }, stage, ...extra }, { status });
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.INTRON_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: { message: "Intron TTS is not configured." }, stage: "config" }, { status: 503 });
-  }
+  if (!apiKey) return errorJson("Intron TTS is not configured.", "config", 503);
 
   let body: TtsRequest;
   try {
     body = (await request.json()) as TtsRequest;
   } catch {
-    return NextResponse.json({ error: { message: "Invalid TTS request." }, stage: "request" }, { status: 400 });
+    return errorJson("Invalid TTS request.", "request", 400);
   }
 
   const text = body.text?.trim();
-  if (!text) {
-    return NextResponse.json({ error: { message: "Text is required." }, stage: "request" }, { status: 400 });
-  }
+  if (!text) return errorJson("Text is required.", "request", 400);
   if (text.length > MAX_TEXT_LENGTH) {
-    return NextResponse.json({ error: { message: "That response is too long to speak at once." }, stage: "request" }, { status: 400 });
+    return errorJson("That response is too long to speak at once.", "request", 400);
   }
 
   const voice = inferVoice(text, body.language);
 
   try {
-    const response = await fetch(INTRON_TTS_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text,
-        voice_language: voice.language,
-        voice_accent: voice.accent,
-        voice_gender: "female",
-        output_audio_format: "wav",
-      }),
-      cache: "no-store",
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 70000);
 
-    const payload = (await response.json().catch(() => ({}))) as IntronTtsResponse;
-    const audioUrl = payload.data?.audio_path;
-
-    if (!response.ok || !audioUrl) {
-      return NextResponse.json(
-        {
-          error: { message: payload.message || "Intron could not generate speech." },
-          provider: "intron",
-          stage: "generate",
-          upstreamStatus: payload.data?.processing_status ?? null,
+    let generationResponse: Response;
+    try {
+      generationResponse = await fetch(INTRON_TTS_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-        { status: response.status >= 400 ? response.status : 502 },
+        body: JSON.stringify({
+          text,
+          voice_language: voice.language,
+          voice_accent: voice.accent,
+          voice_gender: "female",
+          output_audio_format: "wav",
+        }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const payload = (await generationResponse.json().catch(() => ({}))) as IntronTtsResponse;
+    const audioPath = payload.data?.audio_path?.trim();
+
+    if (!generationResponse.ok || !audioPath) {
+      return errorJson(
+        payload.message || "Intron could not generate speech.",
+        "generate",
+        generationResponse.status >= 400 ? generationResponse.status : 502,
+        { upstreamStatus: payload.data?.processing_status ?? null },
       );
     }
 
-    return NextResponse.json({
-      audioUrl,
-      provider: "intron",
-      voiceLanguage: voice.language,
-      voiceAccent: voice.accent,
-      duration: payload.data?.audio_duration_in_seconds ?? null,
+    let audioUrl: URL;
+    try {
+      audioUrl = new URL(audioPath);
+    } catch {
+      return errorJson("Intron returned an invalid audio location.", "audio-url", 502);
+    }
+
+    if (audioUrl.protocol !== "https:" && audioUrl.protocol !== "http:") {
+      return errorJson("Intron returned an unsupported audio location.", "audio-url", 502);
+    }
+
+    const audioResponse = await fetch(audioUrl, {
+      cache: "no-store",
+      redirect: "follow",
+      headers: { Accept: "audio/*,*/*" },
+    });
+
+    if (!audioResponse.ok) {
+      return errorJson(`Generated voice could not be loaded (${audioResponse.status}).`, "audio-fetch", 502);
+    }
+
+    const audioBytes = await audioResponse.arrayBuffer();
+    if (!audioBytes.byteLength) {
+      return errorJson("Intron returned an empty audio file.", "audio-fetch", 502);
+    }
+
+    return new Response(audioBytes, {
+      status: 200,
+      headers: {
+        "Content-Type": audioResponse.headers.get("content-type") || "audio/wav",
+        "Content-Length": String(audioBytes.byteLength),
+        "Cache-Control": "no-store",
+        "Content-Disposition": "inline; filename=iroyin-voice.wav",
+        "X-Iroyin-Voice-Language": voice.language,
+        "X-Iroyin-Voice-Accent": voice.accent,
+        "X-Content-Type-Options": "nosniff",
+      },
     });
   } catch (error) {
+    const timedOut = error instanceof Error && error.name === "AbortError";
     console.error("Intron TTS generation failed", error);
-    return NextResponse.json(
-      {
-        error: { message: "Intron TTS is temporarily unavailable." },
-        provider: "intron",
-        stage: "network",
-      },
-      { status: 502 },
+    return errorJson(
+      timedOut ? "Voice generation took too long. Please retry." : "Intron TTS is temporarily unavailable.",
+      timedOut ? "timeout" : "network",
+      502,
     );
   }
 }
