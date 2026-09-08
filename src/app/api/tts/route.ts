@@ -96,6 +96,8 @@ export async function POST(request: Request) {
         {
           upstreamStatus: payload.data?.processing_status ?? null,
           upstreamHttpStatus: generationResponse.status,
+          requestedLanguage: voice.language,
+          requestedAccent: voice.accent,
         },
       );
     }
@@ -111,17 +113,19 @@ export async function POST(request: Request) {
       return errorJson("Intron returned an unsupported audio location.", "audio-url", 502);
     }
 
+    // The audio_path returned by Intron is already the generated media location.
+    // Fetch it as media; do not attach the API bearer token to the storage/CDN request.
     const audioResponse = await fetch(audioUrl, {
       cache: "no-store",
       redirect: "follow",
-      headers: {
-        Accept: "audio/*,*/*",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { Accept: "audio/*,*/*" },
     });
 
     if (!audioResponse.ok) {
-      return errorJson(`Generated voice could not be loaded (${audioResponse.status}).`, "audio-fetch", 502);
+      return errorJson(`Generated voice could not be loaded (${audioResponse.status}).`, "audio-fetch", 502, {
+        requestedLanguage: voice.language,
+        requestedAccent: voice.accent,
+      });
     }
 
     const audioBytes = await audioResponse.arrayBuffer();
@@ -136,6 +140,7 @@ export async function POST(request: Request) {
         "Content-Length": String(audioBytes.byteLength),
         "Cache-Control": "no-store",
         "Content-Disposition": "inline; filename=iroyin-voice.wav",
+        "X-Iroyin-Voice-Provider": "intron",
         "X-Iroyin-Voice-Language": voice.language,
         "X-Iroyin-Voice-Accent": voice.accent,
         "X-Content-Type-Options": "nosniff",
@@ -148,6 +153,7 @@ export async function POST(request: Request) {
       timedOut ? "Voice generation took too long. Please retry." : "Intron TTS is temporarily unavailable.",
       timedOut ? "timeout" : "network",
       502,
+      { requestedLanguage: voice.language, requestedAccent: voice.accent },
     );
   }
 }
