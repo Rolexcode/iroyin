@@ -53,7 +53,7 @@ async function requestNativeVoice(text: string, language: VoiceLanguage) {
 async function requestNativeVoiceWithRetry(text: string, language: VoiceLanguage) {
   try { return await requestNativeVoice(text, language); }
   catch {
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await new Promise((resolve) => setTimeout(resolve, 250));
     return requestNativeVoice(text, language);
   }
 }
@@ -105,14 +105,9 @@ export function VoicePlayback() {
         button.textContent = `Preparing ${name} voice…`;
 
         try {
-          // Generate every short Intron clip before playback. This avoids starting a new
-          // media element after the user's tap, which mobile Chrome can block mid-answer.
-          const urls: string[] = [];
-          for (let i = 0; i < chunks.length; i += 1) {
-            if (disposed || run !== playbackRun) return;
-            button.textContent = chunks.length > 1 ? `Preparing ${name} voice · ${i + 1}/${chunks.length}` : `Preparing ${name} voice…`;
-            urls.push(await requestNativeVoiceWithRetry(chunks[i], language));
-          }
+          // Intron currently needs short clips. Generate them concurrently rather than
+          // waiting for 1, then 2, then 3... while preserving their playback order.
+          const urls = await Promise.all(chunks.map((chunk) => requestNativeVoiceWithRetry(chunk, language)));
           if (disposed || run !== playbackRun) return;
 
           const audio = new Audio();
