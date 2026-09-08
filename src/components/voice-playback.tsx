@@ -28,12 +28,40 @@ function selectedLanguage(card: HTMLElement, text: string): VoiceLanguage {
   return inferLanguage(text);
 }
 
-function spokenVersion(text: string) {
-  const clean = text.replace(/\*\*/g, "").replace(/^[#>-]+\s*/gm, "").replace(/^\s*\d+[.)]\s*/gm, "").replace(/\s+/g, " ").trim();
-  if (clean.length <= MAX_SPOKEN_CHARS) return clean;
-  const candidate = clean.slice(0, MAX_SPOKEN_CHARS);
-  const lastBreak = Math.max(candidate.lastIndexOf(". "), candidate.lastIndexOf("? "), candidate.lastIndexOf("! "), candidate.lastIndexOf(", "), candidate.lastIndexOf("; "));
-  return (lastBreak > 45 ? candidate.slice(0, lastBreak + 1) : candidate).trim();
+function cleanForSpeech(text: string) {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/^[#>-]+\s*/gm, "")
+    .replace(/^\s*\d+[.)]\s*/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitForSpeech(text: string) {
+  const clean = cleanForSpeech(text);
+  if (!clean) return [];
+
+  const chunks: string[] = [];
+  let remaining = clean;
+
+  while (remaining.length > MAX_SPOKEN_CHARS) {
+    const candidate = remaining.slice(0, MAX_SPOKEN_CHARS + 1);
+    const punctuationBreak = Math.max(
+      candidate.lastIndexOf(". "),
+      candidate.lastIndexOf("? "),
+      candidate.lastIndexOf("! "),
+      candidate.lastIndexOf("; "),
+      candidate.lastIndexOf(", "),
+    );
+    const wordBreak = candidate.lastIndexOf(" ");
+    const breakAt = punctuationBreak >= 45 ? punctuationBreak + 1 : wordBreak >= 45 ? wordBreak : MAX_SPOKEN_CHARS;
+    const chunk = remaining.slice(0, breakAt).trim();
+    if (chunk) chunks.push(chunk);
+    remaining = remaining.slice(breakAt).trim();
+  }
+
+  if (remaining) chunks.push(remaining);
+  return chunks;
 }
 
 function browserFallback(text: string, language: VoiceLanguage, button: HTMLButtonElement) {
@@ -54,14 +82,36 @@ function browserFallback(text: string, language: VoiceLanguage, button: HTMLButt
   return true;
 }
 
+async function requestNativeVoice(text: string, language: VoiceLanguage) {
+  const response = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language }),
+    cache: "no-store",
+  });
+  const payload = (await response.json()) as TtsResponse;
+  if (!response.ok || !payload.audioUrl) throw new Error(payload.error?.message || "Voice generation failed");
+  return payload.audioUrl;
+}
+
+function playAudio(audio: HTMLAudioElement) {
+  return new Promise<void>((resolve, reject) => {
+    audio.onended = () => resolve();
+    audio.onerror = () => reject(new Error("Generated audio could not play"));
+    audio.play().catch(reject);
+  });
+}
+
 export function VoicePlayback() {
   useEffect(() => {
     let activeAudio: HTMLAudioElement | null = null;
     let activeButton: HTMLButtonElement | null = null;
     let attachedCard: HTMLElement | null = null;
     let disposed = false;
+    let playbackRun = 0;
 
     const stop = () => {
+      playbackRun += 1;
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       activeAudio?.pause();
       activeAudio = null;
@@ -76,7 +126,9 @@ export function VoicePlayback() {
 
       const fullText = card.innerText.trim();
       if (!fullText) return;
-      const text = spokenVersion(fullText);
+      const chunks = splitForSpeech(fullText);
+      if (!chunks.length) return;
+      const cleanText = cleanForSpeech(fullText);
       const language = selectedLanguage(card, fullText);
       const name = language === "yo" ? "Yorùbá" : language === "pcm" ? "Pidgin" : "English";
 
@@ -93,45 +145,49 @@ export function VoicePlayback() {
         if (activeAudio && !activeAudio.paused) {
           stop();
           button.textContent = `▶ Listen in ${name}`;
+          button.disabled = false;
           return;
         }
 
+        const run = ++playbackRun;
         button.disabled = true;
         button.textContent = `Generating ${name} voice…`;
 
         try {
-          const response = await fetch("/api/tts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, language }),
-            cache: "no-store",
-          });
-          const payload = (await response.json()) as TtsResponse;
-          if (!response.ok || !payload.audioUrl) throw new Error(payload.error?.message || "Voice generation failed");
-          if (disposed) return;
+          let nextUrlPromise: Promise<string> | null = requestNativeVoice(chunks[0], language);
 
-          const audio = new Audio(payload.audioUrl);
-          activeAudio = audio;
-          audio.preload = "auto";
-          audio.onended = () => {
+          for (let i = 0; i < chunks.length; i += 1) {
+            const audioUrl = await nextUrlPromise;
+            if (disposed || run !== playbackRun) return;
+
+            nextUrlPromise = i + 1 < chunks.length
+              ? requestNativeVoice(chunks[i + 1], language)
+              : null;
+
+            const audio = new Audio(audioUrl);
+            activeAudio = audio;
+            audio.preload = "auto";
+            button.disabled = false;
+            button.textContent = chunks.length > 1
+              ? `■ Stop ${name} voice · ${i + 1}/${chunks.length}`
+              : `■ Stop ${name} voice`;
+
+            await playAudio(audio);
+            if (disposed || run !== playbackRun) return;
             activeAudio = null;
-            if (button.isConnected) button.textContent = `▶ Listen in ${name}`;
-          };
-          audio.onerror = () => {
-            activeAudio = null;
-            if (!button.isConnected) return;
-            browserFallback(text, language, button);
-          };
-          button.disabled = false;
-          button.textContent = `■ Stop ${name} voice`;
-          await audio.play();
+          }
+
+          if (button.isConnected && run === playbackRun) {
+            button.textContent = `▶ Listen in ${name}`;
+            button.disabled = false;
+          }
         } catch (error) {
-          if (disposed || !button.isConnected) return;
+          if (disposed || run !== playbackRun || !button.isConnected) return;
           stop();
           button.disabled = false;
-          const fallback = browserFallback(text, language, button);
+          const fallback = browserFallback(cleanText, language, button);
           button.title = fallback
-            ? "Intron voice could not play; using the device voice so the demo still has audio."
+            ? "Intron voice could not complete; using the device voice so the demo still has audio."
             : (error instanceof Error ? error.message : "Voice unavailable");
           if (!fallback) button.textContent = "Voice unavailable · retry";
         }
