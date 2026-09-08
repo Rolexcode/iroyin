@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 150;
+export const maxDuration = 60;
 
 const INTRON_TTS_URL = "https://infer.voice.intron.io/tts/v1/generate";
-const MAX_TEXT_LENGTH = 600;
+const MAX_TEXT_LENGTH = 100;
 
 type TtsRequest = {
   text?: string;
@@ -54,14 +54,14 @@ export async function POST(request: Request) {
   const text = body.text?.trim();
   if (!text) return errorJson("Text is required.", "request", 400);
   if (text.length > MAX_TEXT_LENGTH) {
-    return errorJson("That response is too long to speak at once.", "request", 400);
+    return errorJson("Voice text chunk is too long.", "request", 400, { maxChars: MAX_TEXT_LENGTH });
   }
 
   const voice = inferVoice(text, body.language);
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 70000);
+    const timeout = setTimeout(() => controller.abort(), 45000);
 
     let generationResponse: Response;
     try {
@@ -93,7 +93,10 @@ export async function POST(request: Request) {
         payload.message || "Intron could not generate speech.",
         "generate",
         generationResponse.status >= 400 ? generationResponse.status : 502,
-        { upstreamStatus: payload.data?.processing_status ?? null },
+        {
+          upstreamStatus: payload.data?.processing_status ?? null,
+          upstreamHttpStatus: generationResponse.status,
+        },
       );
     }
 
@@ -111,7 +114,10 @@ export async function POST(request: Request) {
     const audioResponse = await fetch(audioUrl, {
       cache: "no-store",
       redirect: "follow",
-      headers: { Accept: "audio/*,*/*" },
+      headers: {
+        Accept: "audio/*,*/*",
+        Authorization: `Bearer ${apiKey}`,
+      },
     });
 
     if (!audioResponse.ok) {
