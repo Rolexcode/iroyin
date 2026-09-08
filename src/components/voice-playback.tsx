@@ -3,13 +3,6 @@
 import { useEffect } from "react";
 
 type VoiceLanguage = "pcm" | "yo" | "en";
-type TtsResponse = {
-  audioUrl?: string;
-  provider?: string;
-  voiceLanguage?: VoiceLanguage;
-  error?: { message?: string };
-  stage?: string;
-};
 
 const MAX_SPOKEN_CHARS = 300;
 
@@ -44,12 +37,28 @@ function spokenVersion(text: string) {
   return (lastSentence > 140 ? candidate.slice(0, lastSentence + 1) : candidate).trim();
 }
 
+async function responseMessage(response: Response) {
+  try {
+    const payload = await response.clone().json() as { error?: { message?: string }; stage?: string };
+    const stage = payload.stage ? ` · ${payload.stage}` : "";
+    return `${payload.error?.message || `Voice request failed (${response.status})`}${stage}`;
+  } catch {
+    return `Voice request failed (${response.status})`;
+  }
+}
+
 export function VoicePlayback() {
   useEffect(() => {
     let activeAudio: HTMLAudioElement | null = null;
     let activeButton: HTMLButtonElement | null = null;
     let attachedCard: HTMLElement | null = null;
+    let cachedObjectUrl: string | null = null;
     let disposed = false;
+
+    const clearObjectUrl = () => {
+      if (cachedObjectUrl) URL.revokeObjectURL(cachedObjectUrl);
+      cachedObjectUrl = null;
+    };
 
     const stop = () => {
       if (!activeAudio) return;
@@ -64,6 +73,7 @@ export function VoicePlayback() {
       if (activeButton?.isConnected && attachedCard === card) return;
 
       stop();
+      clearObjectUrl();
       if (activeButton?.isConnected) activeButton.remove();
 
       const fullText = card.innerText.trim();
@@ -82,7 +92,6 @@ export function VoicePlayback() {
 
       activeButton = button;
       attachedCard = card;
-      let audioUrl: string | null = null;
 
       button.addEventListener("click", async () => {
         if (activeAudio && !activeAudio.paused) {
@@ -92,7 +101,7 @@ export function VoicePlayback() {
         }
 
         try {
-          if (!audioUrl) {
+          if (!cachedObjectUrl) {
             button.disabled = true;
             button.textContent = `Generating ${languageName} voice…`;
             const response = await fetch("/api/tts", {
@@ -101,16 +110,19 @@ export function VoicePlayback() {
               body: JSON.stringify({ text, language }),
               cache: "no-store",
             });
-            const payload = (await response.json().catch(() => ({}))) as TtsResponse;
-            if (!response.ok || !payload.audioUrl) {
-              const stage = payload.stage ? ` · ${payload.stage}` : "";
-              throw new Error(`${payload.error?.message || `Voice request failed (${response.status})`}${stage}`);
+            if (!response.ok) throw new Error(await responseMessage(response));
+
+            const contentType = response.headers.get("content-type") || "";
+            if (!contentType.toLowerCase().startsWith("audio/")) {
+              throw new Error("Voice service returned an invalid audio response.");
             }
-            audioUrl = payload.audioUrl;
+            const blob = await response.blob();
+            if (!blob.size) throw new Error("Voice service returned an empty audio file.");
+            cachedObjectUrl = URL.createObjectURL(blob);
           }
 
-          if (disposed || !audioUrl) return;
-          const audio = new Audio(audioUrl);
+          if (disposed || !cachedObjectUrl) return;
+          const audio = new Audio(cachedObjectUrl);
           activeAudio = audio;
           audio.preload = "auto";
           audio.onended = () => {
@@ -119,11 +131,11 @@ export function VoicePlayback() {
           };
           audio.onerror = () => {
             activeAudio = null;
-            audioUrl = null;
+            clearObjectUrl();
             if (button.isConnected) {
               button.disabled = false;
               button.textContent = "Audio could not play · retry";
-              button.title = "Intron generated a voice URL, but the browser could not play it.";
+              button.title = "The voice file was generated but this browser could not decode it.";
             }
           };
           button.disabled = false;
@@ -132,6 +144,7 @@ export function VoicePlayback() {
         } catch (error) {
           if (disposed || !button.isConnected) return;
           stop();
+          clearObjectUrl();
           const message = error instanceof Error ? error.message : "Voice unavailable";
           button.disabled = false;
           button.textContent = "Voice unavailable · retry";
@@ -148,6 +161,7 @@ export function VoicePlayback() {
       disposed = true;
       observer.disconnect();
       stop();
+      clearObjectUrl();
       activeButton?.remove();
     };
   }, []);
