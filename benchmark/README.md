@@ -31,6 +31,22 @@ FFmpeg must be available on `PATH` for provider-neutral PCM conversion.
 3. Place the private manifest under `manifests/private/` and source audio under the ignored `audio/` directory.
 4. Validate all protocol gates before scoring or publishing.
 
+Generate and validate the private AfriSwitch manifest from the benchmark virtualenv. The
+command downloads only the selected source clips, writes normalized mono 16 kHz PCM WAV
+files under ignored `audio/`, and refuses to overwrite an existing manifest or normalized
+audio file:
+
+```powershell
+cd C:\Users\WINDOWS\OneDrive\Desktop\iroyin\benchmark
+.venv\Scripts\python.exe -m iroyin_benchmark.selection generate --repository-root ..
+.venv\Scripts\python.exe -m iroyin_benchmark.selection validate --repository-root ..
+```
+
+The selector uses seed `260903`, filters 3–30 second clips with at least one switch point,
+splits each config into rank-based CMI tertiles and duration at/below versus above its
+eligible-set median, then samples three clips per stratum. Do not commit the generated
+manifest, source audio, normalized audio, consent records, or API keys.
+
 AfriSwitch contributes 36 clips: 18 Pidgin-English and 18 Yoruba-English. The custom set contributes 24 clips: 12 Pidgin-English and 12 Yoruba-English. The complete benchmark therefore remains 60 clips.
 
 ## Remote credentials
