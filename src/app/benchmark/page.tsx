@@ -31,10 +31,10 @@ export default function BenchmarkPage() {
           </div>
           <div className="protocol-ticket">
             <div className="ticket-top"><FileLock2 size={20} /><span>Protocol lock</span></div>
-            <strong>v1.0</strong>
+            <strong>v1.1</strong>
             <dl>
-              <div><dt>State</dt><dd>Frozen before inference</dd></div>
-              <div><dt>Tag</dt><dd>benchmark-protocol-v1.0</dd></div>
+              <div><dt>State</dt><dd>Amended before inference</dd></div>
+              <div><dt>Amends</dt><dd>benchmark-protocol-v1.0</dd></div>
               <div><dt>Expected corpus</dt><dd>60 clips</dd></div>
             </dl>
           </div>

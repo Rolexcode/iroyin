@@ -1,5 +1,5 @@
 {
-  "protocolId": "iroyin-benchmark-v1.0",
+  "protocolId": "iroyin-benchmark-v1.1",
   "status": "not_run",
   "generatedAt": null,
   "corpus": {
@@ -8,7 +8,7 @@
   },
   "providers": [
     { "id": "sahara", "label": "Sahara", "metrics": {} },
-    { "id": "gpt4o-transcribe", "label": "GPT-4o Transcribe", "metrics": {} },
-    { "id": "whisper-large-v3", "label": "Whisper large-v3", "metrics": {} }
+    { "id": "whisper-large-v3-groq", "label": "Whisper large-v3 · Groq", "metrics": {} },
+    { "id": "deepgram-nova-3", "label": "Deepgram Nova-3", "metrics": {} }
   ]
 }

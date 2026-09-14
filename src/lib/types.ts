@@ -97,12 +97,12 @@ export type BenchmarkMetricSet = {
 };
 
 export type BenchmarkArtifact = {
-  protocolId: "iroyin-benchmark-v1.0";
+  protocolId: "iroyin-benchmark-v1.0" | "iroyin-benchmark-v1.1";
   status: "not_run" | "complete" | "failed_validation";
   generatedAt: string | null;
   corpus: { expectedClips: 60; completedClips: number };
   providers: Array<{
-    id: "sahara" | "gpt4o-transcribe" | "whisper-large-v3";
+    id: "sahara" | "whisper-large-v3-groq" | "deepgram-nova-3" | "gpt4o-transcribe" | "whisper-large-v3";
     label: string;
     metrics: BenchmarkMetricSet;
   }>;
