@@ -127,7 +127,10 @@ def build_manifest_rows(selected: Iterable[dict], repository_root: Path) -> list
             "normalizedAudioSha256": sha256_file(normalized_path),
             "referenceTranscript": transcript,
             "switchTokenIndices": _tagged_switch_indices(str(row.get("transcription_tagged", transcript))),
-            "referenceSlots": [{"slot": "transcript", "value": transcript}],
+            # AfriSwitch supplies transcripts but not RIS fact annotations. The
+            # sidecar annotation step must add human-labelled categories before
+            # this manifest can pass the inference gate.
+            "referenceSlots": [],
             "consentOrLicenseBasis": "license:CC BY-NC-SA-4.0; dataset:intronhealth/AfriSwitch",
             "sourceAudioPath": source_path.relative_to(repository_root).as_posix(),
             "normalizedAudioPath": normalized_path.relative_to(repository_root).as_posix(),
@@ -161,6 +164,17 @@ def validate_afriswitch_manifest(path: Path, repository_root: Path) -> list[str]
             errors.append(f"{clip['clipId']}: eligibility fields are invalid")
         if not clip["referenceTranscript"] or not clip["referenceSlots"] or len(clip["switchTokenIndices"]) < 1:
             errors.append(f"{clip['clipId']}: annotations are incomplete")
+        elif any(
+            not isinstance(slot, dict)
+            or slot.get("category") not in {
+                "event_or_action", "negation", "amount_quantity_or_count",
+                "actor_or_affected_person", "incident_type", "location",
+                "time_date_or_duration", "urgency_or_risk", "other_context_or_evidence",
+            }
+            or not str(slot.get("value", "")).strip()
+            for slot in clip["referenceSlots"]
+        ):
+            errors.append(f"{clip['clipId']}: reference slots need valid categories and values")
         if not str(clip["consentOrLicenseBasis"]).startswith("license:"):
             errors.append(f"{clip['clipId']}: license basis is missing")
         for field in ("sourceAudioPath", "normalizedAudioPath"):
