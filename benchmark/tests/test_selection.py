@@ -61,7 +61,7 @@ def test_validation_checks_required_fields_and_audio_hashes(tmp_path: Path):
                     "normalizedAudioSha256": sha256_file(normalized),
                     "referenceTranscript": "local hello",
                     "switchTokenIndices": [1],
-                    "referenceSlots": [{"slot": "transcript", "value": "local hello"}],
+                    "referenceSlots": [{"category": "event_or_action", "value": "local hello"}],
                     "consentOrLicenseBasis": "license:CC BY-NC-SA-4.0",
                     "sourceAudioPath": "source.wav",
                     "normalizedAudioPath": "normalized.wav",

@@ -8,10 +8,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import PROTOCOL_ID
+from . import AMENDS_PROTOCOL_ID, PROTOCOL_ID
 
 
-TRACKED_PACKAGES = ["datasets", "faster-whisper", "huggingface-hub", "jiwer", "openai", "pydantic", "requests", "soundfile"]
+TRACKED_PACKAGES = ["datasets", "faster-whisper", "huggingface-hub", "jiwer", "pydantic", "requests", "soundfile"]
 
 
 def _git(repository_root: Path, *args: str) -> str:
@@ -28,10 +28,13 @@ def environment_receipt(repository_root: Path, compute_location: str, provider: 
             packages[name] = "not-installed"
     return {
         "protocolId": PROTOCOL_ID,
+        "amendsProtocolId": AMENDS_PROTOCOL_ID,
+        "protocolAmendment": "benchmark/config/protocol.v1.1-amendment.json",
         "createdAt": datetime.now(timezone.utc).isoformat(),
         "provider": provider,
         "computeLocation": compute_location,
         "gitCommit": _git(repository_root, "rev-parse", "HEAD"),
+        "protocolTag": "benchmark-protocol-v1.0",
         "protocolTagCommit": _git(repository_root, "rev-list", "-n", "1", "benchmark-protocol-v1.0"),
         "gitDirty": bool(_git(repository_root, "status", "--porcelain")),
         "python": sys.version,

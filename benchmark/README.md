@@ -82,3 +82,18 @@ validate corpus + hashes
 ```
 
 Run directories and raw provider outputs should remain immutable once inference begins. The final report must disclose the v1.1 amendment and the reason for replacing the original paid OpenAI dependencies.
+
+## Local commands
+
+Run these from `benchmark` with its Python 3.11 virtual environment active:
+
+```powershell
+python -m iroyin_benchmark.cli generate --repository-root ..
+python -m iroyin_benchmark.cli annotation-template --manifest manifests/private/manifest.v1.jsonl --output manifests/private/annotations.v1.jsonl
+python -m iroyin_benchmark.cli apply-annotations --manifest manifests/private/manifest.v1.jsonl --annotations manifests/private/annotations.v1.jsonl --output manifests/private/manifest.annotated.v1.jsonl
+python -m iroyin_benchmark.cli validate --repository-root .. --manifest manifests/private/manifest.annotated.v1.jsonl
+python -m iroyin_benchmark.cli run --repository-root .. --manifest manifests/private/manifest.annotated.v1.jsonl --output-dir runs/<run-id>
+python -m iroyin_benchmark.cli aggregate --manifest manifests/private/manifest.annotated.v1.jsonl --run-dir runs/<run-id> --output reports/<run-id>.json
+```
+
+The runner refuses an invalid or incomplete manifest, records provider failures instead of dropping them, and never overwrites an existing run or report.

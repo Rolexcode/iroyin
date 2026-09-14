@@ -100,6 +100,16 @@ def validate_manifest(path: Path, repository_root: Path, *, require_normalized: 
             errors.append(f"{clip_id}: referenceTranscript is empty")
         if not clip.get("referenceSlots"):
             errors.append(f"{clip_id}: referenceSlots is empty")
+        else:
+            allowed_categories = {
+                "event_or_action", "negation", "amount_quantity_or_count",
+                "actor_or_affected_person", "incident_type", "location",
+                "time_date_or_duration", "urgency_or_risk", "other_context_or_evidence",
+            }
+            for slot in clip["referenceSlots"]:
+                if not isinstance(slot, dict) or slot.get("category") not in allowed_categories or not str(slot.get("value", "")).strip():
+                    errors.append(f"{clip_id}: every reference slot needs a valid category and non-empty value")
+                    break
         if clip.get("source") == "custom" and not str(clip.get("consentOrLicenseBasis", "")).startswith("consent:"):
             errors.append(f"{clip_id}: custom consent basis must start with 'consent:'")
         source_path = (repository_root / str(clip.get("sourceAudioPath", ""))).resolve()
