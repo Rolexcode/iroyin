@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         </div>
         <aside className="privacy-detail">
           <h2>What leaves your browser</h2>
-          <p>When you choose to transcribe, the audio is sent to Sahara by Intron through the Ìròyìn server route. When live structured extraction is configured, the transcript is sent to the pinned OpenAI model through a separate server route. API keys remain server-side.</p>
+          <p>When you choose to transcribe, the audio is sent to Sahara by Intron through the Ìròyìn server route. Report structuring currently runs with deterministic local rules so the prototype can be tested without a paid extractor. Explain and Express may send transcript text to the configured Groq semantic model; otherwise they use a local fallback. API keys remain server-side.</p>
           <h2>What this prototype does not do</h2>
           <ul><li>Create user accounts</li><li>Store cases in a server database</li><li>Provide legal advice</li><li>Infer missing people, places, dates, amounts, or risks</li><li>Submit to an authority automatically</li></ul>
           <p className="privacy-contact">Before using any linked agency, review its own privacy policy and submission requirements.</p>
