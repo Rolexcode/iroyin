@@ -42,6 +42,7 @@ yarn-error.log*
 # Python benchmark environment and bytecode
 __pycache__/
 *.py[cod]
+*.egg-info/
 .venv/
 .pytest_cache/
 

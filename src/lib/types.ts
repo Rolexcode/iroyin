@@ -59,7 +59,7 @@ export type IroyinCase = {
   transcript: string;
   transcriptProvider: "sahara" | "demo" | "manual";
   transcriptFileId?: string;
-  extractionMode: "openai" | "local_rules" | "demo_fixture";
+  extractionMode: "local_rules" | "demo_fixture";
   summary: string;
   facts: IncidentFact[];
   missingCriticalFields: FactField[];

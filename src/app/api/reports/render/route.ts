@@ -1,12 +1,12 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { z } from "zod";
 import { apiError } from "@/lib/api";
-import { formatPlainTextReport } from "@/lib/incident";
-import type { IroyinCase } from "@/lib/types";
+import { iroyinCaseSchema } from "@/lib/case-schema";
+import { calculateMissingCriticalFields, formatPlainTextReport } from "@/lib/incident";
 
 export const runtime = "nodejs";
 
-const requestSchema = z.object({ caseFile: z.record(z.string(), z.unknown()) });
+const requestSchema = z.object({ caseFile: iroyinCaseSchema });
 
 function safePdfText(value: string) {
   return value
@@ -47,9 +47,12 @@ export async function POST(request: Request) {
   }
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) return apiError(400, "invalid_report", "A structured case is required.");
-  const caseFile = parsed.data.caseFile as IroyinCase;
+  const caseFile = parsed.data.caseFile;
   if (caseFile.verification?.status !== "verified") {
     return apiError(409, "verification_required", "Confirm the report before exporting it.");
+  }
+  if (calculateMissingCriticalFields(caseFile.scenario, caseFile.facts).length > 0) {
+    return apiError(409, "critical_details_required", "Complete all critical details before exporting this report.");
   }
   const document = await PDFDocument.create();
   const regular = await document.embedFont(StandardFonts.Helvetica);
@@ -83,7 +86,7 @@ export async function POST(request: Request) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${caseFile.caseId || "iroyin-report"}.pdf"`,
+      "Content-Disposition": `attachment; filename="${caseFile.caseId}.pdf"`,
       "Cache-Control": "no-store",
     },
   });

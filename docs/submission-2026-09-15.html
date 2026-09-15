@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ìròyìn — Sahara CodeSwitch Africa submission</title>
+  <style>
+    :root { --ink:#10211b; --muted:#56635e; --paper:#f4f1e8; --card:#fffdf7; --green:#096b4b; --lime:#d9f36a; --line:#d8d4c8; --warn:#7a4d00; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { width:min(1080px,calc(100% - 32px)); margin:32px auto 80px; }
+    header { padding:44px; border-radius:28px; background:var(--ink); color:white; position:relative; overflow:hidden; }
+    header:after { content:""; position:absolute; width:260px; height:260px; border-radius:50%; background:var(--lime); right:-80px; top:-100px; opacity:.9; }
+    .eyebrow { color:var(--lime); letter-spacing:.12em; text-transform:uppercase; font-size:.78rem; font-weight:800; }
+    h1 { font:700 clamp(3rem,8vw,6.4rem)/.9 Georgia,serif; margin:.2em 0; letter-spacing:-.04em; }
+    header p { max-width:680px; font-size:1.25rem; color:#dfe8e2; }
+    .actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:26px; }
+    a.button { color:var(--ink); background:var(--lime); padding:11px 16px; border-radius:999px; font-weight:800; text-decoration:none; }
+    a.button.secondary { background:transparent; color:white; border:1px solid #75837d; }
+    section { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:30px; margin-top:18px; }
+    h2 { font:700 2rem/1.1 Georgia,serif; margin:0 0 16px; }
+    h3 { margin:28px 0 8px; }
+    p { max-width:78ch; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .tile { background:#edf1e9; border-radius:16px; padding:18px; }
+    .tile strong { display:block; color:var(--green); font-size:1.15rem; margin-bottom:4px; }
+    table { border-collapse:collapse; width:100%; margin:18px 0; font-variant-numeric:tabular-nums; }
+    th,td { padding:12px; border-bottom:1px solid var(--line); text-align:right; }
+    th:first-child,td:first-child { text-align:left; }
+    .best { font-weight:800; color:var(--green); }
+    .note { border-left:4px solid var(--lime); padding:10px 16px; background:#f7f8df; }
+    .warn { border-left-color:#d99a28; background:#fff3d8; color:var(--warn); }
+    .timeline { display:grid; grid-template-columns:120px 1fr; gap:0 18px; }
+    .timeline div { border-bottom:1px solid var(--line); padding:14px 0; }
+    .time { color:var(--green); font-weight:800; }
+    code { background:#e9ece6; border-radius:5px; padding:2px 5px; }
+    ul { padding-left:22px; }
+    footer { color:var(--muted); padding:22px 8px; }
+    @media (max-width:760px) { header { padding:30px 24px; } .grid { grid-template-columns:1fr; } section { padding:22px; } .timeline { grid-template-columns:90px 1fr; } table { font-size:.82rem; } th,td { padding:8px 5px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Legal &amp; Public Services · Sahara CodeSwitch Africa</div>
+    <h1>Ìròyìn</h1>
+    <p>Speak naturally. Leave a record you trust. Ìròyìn turns Nigerian code-switched speech into a report the speaker can inspect, correct, verify, and use.</p>
+    <div class="actions">
+      <a class="button" href="https://iroyin.vercel.app">Open live prototype</a>
+      <a class="button secondary" href="https://github.com/Rolexcode/iroyin">View source</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>The case for Ìròyìn</h2>
+    <p>Many public complaints begin as a spoken account, but formal systems expect a polished written form. For people who naturally code-switch, that can mean translating themselves and reconstructing exact details under stress. Important facts can disappear before the complaint is even written.</p>
+    <p>Ìròyìn starts with the speaker's natural Pidgin–English or Yorùbá–English voice. Sahara by Intron transcribes it, and the speaker checks exactly what the model heard. Explain makes difficult language easier to understand. Express rewrites the same thought in a chosen register. Report creates a structured, evidence-linked incident record, detects critical gaps, asks for clarification, and requires human verification before export.</p>
+    <p>Sahara is the essential first-mile speech layer, not a decorative integration. Ìròyìn elevates its code-switched transcript into a transparent, user-controlled record while keeping the original words and provenance visible.</p>
+    <div class="grid">
+      <div class="tile"><strong>Natural input</strong>Speak or upload Pidgin–English and Yorùbá–English without translating first.</div>
+      <div class="tile"><strong>Evidence, not guesses</strong>Facts retain transcript evidence; missing critical details become questions.</div>
+      <div class="tile"><strong>Reporter control</strong>Correct, verify, copy, or export. No complaint is submitted automatically.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Working prototype</h2>
+    <ul>
+      <li>Live Sahara recording and audio-upload transcription.</li>
+      <li>Original transcript preservation and visible reporter corrections.</li>
+      <li>Explain and Express modes with selected language/register.</li>
+      <li>Deterministic incident extraction, evidence links, missing-field clarification, and correction.</li>
+      <li>Explicit reporter verification, text/PDF export, and informational official-channel routing.</li>
+      <li>Browser-local cases with 24-hour expiry; server-side API keys; no automatic submission.</li>
+    </ul>
+    <p><strong>Live:</strong> <a href="https://iroyin.vercel.app">iroyin.vercel.app</a> · <strong>Code:</strong> <a href="https://github.com/Rolexcode/iroyin">github.com/Rolexcode/iroyin</a></p>
+  </section>
+
+  <section>
+    <h2>Three-provider pilot</h2>
+    <p>The same 11.344-second licensed AfriSwitch Pidgin–English WAV was sent to Sahara, Groq-hosted Whisper large-v3, and Deepgram Nova-3. Lower is better.</p>
+    <table>
+      <thead><tr><th>Provider</th><th>Normalized WER</th><th>Normalized CER</th><th>Switch-window WER</th><th>Latency</th></tr></thead>
+      <tbody>
+        <tr><td>Sahara by Intron</td><td class="best">20.00%</td><td class="best">10.46%</td><td class="best">11.11%</td><td>8.63 s</td></tr>
+        <tr><td>Whisper large-v3 (Groq)</td><td>23.33%</td><td>11.11%</td><td>22.22%</td><td class="best">3.22 s</td></tr>
+        <tr><td>Deepgram Nova-3</td><td>56.67%</td><td>32.68%</td><td>66.67%</td><td>3.97 s</td></tr>
+      </tbody>
+    </table>
+    <p class="note"><strong>What this proves:</strong> all three adapters and the common scoring path worked on identical audio, and Sahara led this clip on all reported accuracy metrics.</p>
+    <p class="note warn"><strong>What this does not prove:</strong> this is <code>n=1</code>, not the frozen 60-clip benchmark. The full run remains pending because gated AfriSwitch shard transfers repeatedly stalled at the backing CDN. No missing result was estimated or fabricated.</p>
+    <p><a href="pilot-benchmark-2026-09-15.md">Read the exact reference, transcripts, settings, hashes, method, and limitations.</a></p>
+  </section>
+
+  <section>
+    <h2>Demo video · about 2:40</h2>
+    <div class="timeline">
+      <div class="time">0:00–0:20</div><div><strong>Problem.</strong> “A public complaint often begins as speech, not a polished form. Code-switching should not force someone to translate themselves before technology can help.”</div>
+      <div class="time">0:20–0:35</div><div><strong>Solution.</strong> “Ìròyìn is a voice-first reporting assistant built on Sahara. Speak naturally, check what it heard, and decide what happens next.”</div>
+      <div class="time">0:35–1:15</div><div><strong>Transcription.</strong> Upload the prepared clip, select its speech mix, transcribe with Sahara, then show the editable transcript and original provenance. Briefly point to Explain and Express.</div>
+      <div class="time">1:15–2:05</div><div><strong>Verified report.</strong> Choose Report (or use the built-in verified demo). Show evidence, a missing-detail question, correction, verification, export, and official channels. Say clearly that nothing is submitted automatically.</div>
+      <div class="time">2:05–2:30</div><div><strong>Benchmark.</strong> Show the table above. State that the complete runner exists, the full download stalled upstream, and the published result is an honest <code>n=1</code> integration pilot.</div>
+      <div class="time">2:30–2:40</div><div><strong>Close.</strong> “Ìròyìn turns the way people already speak into a record they can inspect, correct, and trust.”</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Responsible AI</h2>
+    <p>Speech recognition can be wrong. Ìròyìn keeps the original transcript visible, distinguishes reporter corrections, links facts to evidence, preserves uncertainty and negation, asks instead of guessing when critical facts are missing, and requires explicit human verification. It does not decide whether an allegation is true, provide legal advice, replace emergency services, or submit reports.</p>
+    <p>Audio is sent only after the user chooses to transcribe. Report cases stay in the current browser and expire after 24 hours. The public benchmark excludes private audio, real complainant data, consent records, and API keys.</p>
+    <p><a href="responsible-ai.md">Read the responsible-AI statement.</a></p>
+  </section>
+
+  <section>
+    <h2>Final submission checklist</h2>
+    <ul>
+      <li>✅ Working prototype: <a href="https://iroyin.vercel.app">https://iroyin.vercel.app</a></li>
+      <li>✅ Public source and setup README: <a href="https://github.com/Rolexcode/iroyin">GitHub repository</a></li>
+      <li>✅ Problem, solution, technical integration, benchmark evidence, and responsible-AI statement</li>
+      <li>✅ Demo script under three minutes</li>
+      <li>⬜ Record and upload the demo video</li>
+      <li>⬜ Replace this placeholder with the final video URL: <strong>[ADD VIDEO URL]</strong></li>
+      <li>⬜ Submit before the organizer deadline</li>
+    </ul>
+  </section>
+  <footer>Prepared 15 September 2026. Claims are limited to functionality and evidence present in the repository.</footer>
+</main>
+</body>
+</html>

@@ -236,7 +236,7 @@ export function ReviewWorkspace({ caseId }: { caseId: string }) {
                 </button>
               </>
             ) : <blockquote>“{caseFile.transcript}”</blockquote>}
-            <p className="provider-note">Transcript source: {caseFile.transcriptProvider === "sahara" ? "Sahara by Intron" : caseFile.transcriptProvider === "demo" ? "Guided demo fixture" : "Manually supplied transcript"} · Extraction: {caseFile.extractionMode === "openai" ? "pinned structured model" : caseFile.extractionMode === "local_rules" ? "deterministic local fallback" : "demo fixture"}</p>
+            <p className="provider-note">Transcript source: {caseFile.transcriptProvider === "sahara" ? "Sahara by Intron" : caseFile.transcriptProvider === "demo" ? "Guided demo fixture" : "Manually supplied transcript"} · Extraction: {caseFile.extractionMode === "local_rules" ? "deterministic local rules" : "demo fixture"}</p>
           </section>
         </div>
 

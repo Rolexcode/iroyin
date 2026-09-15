@@ -114,6 +114,10 @@ export function applyFactCorrection(
 }
 
 export function verifyCase(caseFile: IroyinCase): IroyinCase {
+  const missingCriticalFields = calculateMissingCriticalFields(caseFile.scenario, caseFile.facts);
+  if (missingCriticalFields.length > 0) {
+    throw new Error("Complete all critical details before verifying this report.");
+  }
   const now = new Date().toISOString();
   return {
     ...caseFile,

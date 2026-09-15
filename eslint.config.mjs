@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "benchmark/.venv/**",
+    "benchmark/iroyin_benchmark.egg-info/**",
   ]),
 ]);
 

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Ìròyìn code review — 14 September 2026</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:960px;margin:40px auto;padding:0 20px;color:#17201d}h1,h2{line-height:1.2}table{border-collapse:collapse;width:100%;margin:18px 0}th,td{border:1px solid #ccd5d1;padding:10px;text-align:left;vertical-align:top}th{background:#edf2ef}.sev{font-weight:700}.high{color:#a33}.med{color:#8a5b00}.good{color:#176b4d}</style>
+<h1>Ìròyìn engineering review</h1>
+<p><strong>Date:</strong> 14 September 2026 · <strong>Scope:</strong> web app, API routes, benchmark package, deployment-facing config.</p>
+<h2>Verdict</h2>
+<p>The deployed prototype is coherent and demoable. It is not yet evidence-ready for a benchmark prize: the public artifact is correctly marked <code>not_run</code>, with 0/60 clips and no private manifest.</p>
+<h2>Resolution update · 15 September 2026</h2>
+<ul>
+<li><span class="good">Resolved:</span> v1.1 provenance, compatible reference-slot contracts, human annotation/license gates, and tracked runner/aggregate/CLI orchestration.</li>
+<li><span class="good">Resolved:</span> strict server-side case validation for clarification and PDF export, critical-field export checks, and a constrained PDF filename.</li>
+<li><span class="good">Resolved:</span> dead OpenAI extractor/types removed; frontend verification tests added.</li>
+<li><span class="good">Resolved with disclosure:</span> a three-provider <code>n=1</code> pilot is published with exact settings, audio hash, references, transcripts, and limitations. The 60-clip result remains <code>not_run</code>.</li>
+<li><span class="med">Still open:</span> durable rate limiting and TTS audio-host allowlisting should be completed before promotion beyond the judged prototype.</li>
+</ul>
+<h2>Top findings</h2>
+<table><tr><th>Severity</th><th>Finding</th><th>Why it matters</th><th>Recommended fix</th></tr>
+<tr><td class="high">High</td><td>No rate limiting or abuse budget on anonymous transcription, TTS, or Groq transform routes.</td><td>A public visitor can repeatedly spend provider credits and hold serverless requests open.</td><td>Add per-IP/user quotas, request IDs, body limits, and provider concurrency caps before public promotion.</td></tr>
+<tr><td class="high">High</td><td>Report extraction is local regex rules, not robust semantic extraction.</td><td>Real Yoruba/Pidgin phrasing can be missed or misclassified; this is the core “meaning preserved” claim.</td><td>Keep the human verification gate, but add a pinned structured semantic extractor (or explicitly label local mode as pilot) with fixtures for names, dates, amounts, negation, and risk.</td></tr>
+<tr><td class="high">High</td><td>Benchmark corpus/results are incomplete.</td><td>No defensible WER, switch-window, entity-F1, or report-integrity claims can be made.</td><td>Run the gated 60-clip plan only on a plugged-in machine, or submit a clearly labelled pilot and disclose the limitation.</td></tr>
+<tr><td class="high">High</td><td>Benchmark provenance is still hard-coded to v1.0, while the active comparison is v1.1.</td><td>A future receipt could carry the wrong protocol ID/tag, undermining reproducibility.</td><td>Make the amendment the active protocol input and record the v1.1 revision/tag in every run receipt.</td></tr>
+<tr><td class="high">High</td><td>Manifest contracts diverge: the selector emits <code>referenceSlots[].slot</code>, while RIS scoring reads <code>referenceSlots[].category</code>.</td><td>Running integrity scoring against generated rows can raise a key error or silently use incompatible annotations.</td><td>Choose one schema and validate nested slot shape before any run.</td></tr>
+<tr><td class="medium">Medium</td><td>Clarification and PDF routes trust a client-supplied <code>caseFile</code> record and cast it to <code>IroyinCase</code>.</td><td>A caller can forge a verified report or send malformed scenario/fact data; malformed input can become a 500.</td><td>Validate the full case schema server-side, enforce ownership/signatures if persistence is added, and sanitize the PDF filename.</td></tr>
+<tr><td class="medium">Medium</td><td>TTS audio proxy accepts any HTTP(S) URL returned by upstream and follows redirects.</td><td>This creates an SSRF/redirect boundary if upstream data is compromised or unexpectedly points at internal hosts.</td><td>Allowlist the Intron audio hostname, disable redirects, and validate content type/size.</td></tr>
+<tr><td class="medium">Medium</td><td>Dead OpenAI extractor and legacy provider/extraction types remain in the tree.</td><td>They can confuse future contributors and invite accidental paid/stale integration.</td><td>Remove or quarantine legacy code and narrow types after the v1.1 migration is locked.</td></tr>
+<tr><td class="medium">Medium</td><td>The benchmark package has no tracked runner/aggregate/CLI orchestration, and its general validator remains hard-coded for the full 60-clip manifest while AfriSwitch has a separate 36-clip validator.</td><td>The documented final sequence cannot currently be executed end-to-end, and two validators can drift.</td><td>Implement one v1.1 runner/aggregate contract or explicitly label the package as selection/scoring groundwork.</td></tr>
+<tr><td class="medium">Medium</td><td>Frontend test command has no test files.</td><td><code>vitest run</code> exits with “No test files found”; only the Python benchmark suite currently protects behavior.</td><td>Add tests for local extraction, verification/PDF guards, and route schemas, or remove the unused Vitest setup until tests exist.</td></tr>
+</table>
+<h2>What is working</h2>
+<ul><li><span class="good">Pass:</span> <code>pnpm lint</code>, <code>pnpm build</code>, and 5 focused frontend tests.</li><li><span class="good">Pass:</span> benchmark Python suite: 10 tests.</li><li><span class="good">Pass:</span> Sahara, Groq Whisper large-v3, and Deepgram smoke paths.</li><li><span class="good">Pass:</span> honest benchmark UI; it does not invent a full-corpus result.</li></ul>
+<h2>Submission-critical next actions</h2>
+<ol><li>Record the prepared sub-three-minute demo showing natural code-switching, transcript correction, clarification, verification, PDF export, and the labelled pilot.</li><li>Use the Sahara challenge portal and submit with the deployed URL, repo, demo, and transparent benchmark status.</li><li>Position the entry for Legal &amp; Public Services, not Health, unless the product is genuinely changed to a clinical workflow.</li><li>Keep the full benchmark marked <code>not_run</code> until the 60-clip manifest and all provider outputs validate.</li></ol>
+</html>
