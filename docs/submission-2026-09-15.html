@@ -112,6 +112,12 @@
   </section>
 
   <section>
+    <h2>Technical execution</h2>
+    <p>Ìròyìn is a Next.js 16 and React 19 application deployed on Vercel. Server-only routes send multipart audio to Sahara, map the chosen speech pair to <code>pcm</code> or <code>yo</code>, handle queued jobs, and preserve the original transcript separately from reporter corrections. Deterministic incident extraction keeps exact evidence spans, derives required fields by scenario, asks bounded clarification, and invalidates verification after correction. Complete case schemas are validated again on the server, and PDF export is blocked until the record is complete and reporter-verified.</p>
+    <p>The Python 3.11 benchmark package freezes selection, normalization, provider settings, scoring, and v1.1 provenance. It validates license/consent, human reference slots, counts, unique IDs, and SHA-256 hashes before inference. Current checks: 5 frontend tests, 10 benchmark tests, lint, TypeScript, and production build all pass.</p>
+  </section>
+
+  <section>
     <h2>Final submission checklist</h2>
     <ul>
       <li>✅ Working prototype: <a href="https://iroyin.vercel.app">https://iroyin.vercel.app</a></li>

@@ -12,6 +12,10 @@
 - The reporter must review and explicitly verify the record.
 - Ìròyìn never files a complaint, sends an email, or contacts an institution automatically.
 
+## Inclusion
+
+Ìròyìn lets a person begin in Pidgin–English or Yorùbá–English rather than requiring formal English at the point of capture. The interface separates speech recognition from the user's chosen output: the same checked transcript can be explained in a familiar language mix or expressed in a formal register without implying that one way of speaking is more valid than another. The prototype is explicit that two supported pairs do not represent all Nigerian or African speech communities; additional languages require community-informed testing and native-speaker evaluation before release.
+
 ## Data handling
 
 - Audio is sent to Sahara only after the user chooses to transcribe.

@@ -30,6 +30,18 @@ The application is a working Next.js prototype deployed on Vercel. API keys stay
 - Pilot benchmark: https://github.com/Rolexcode/iroyin/blob/main/docs/pilot-benchmark-2026-09-15.md
 - Demo video: **ADD VIDEO URL BEFORE SUBMITTING**
 
+## Technical execution answer
+
+Ìròyìn is a Next.js 16 and React 19 application deployed on Vercel. Audio is sent as multipart form data from the browser to a server-only transcription route, which maps the selected Pidgin–English or Yorùbá–English pair to Sahara's `pcm` or `yo` input, handles both synchronous and queued responses, and polls a validated provider file ID. The original Sahara transcript is preserved separately from reporter corrections.
+
+The Report path uses deterministic local extraction so unsupported details are not invented. Extracted facts keep exact transcript evidence spans; critical fields are derived from the incident scenario; missing fields trigger bounded clarification; corrections invalidate prior verification. Zod schemas validate complete case records again on server routes, and PDF export is refused unless required facts are present and the reporter has verified the record. Cases and audio blobs stay in browser IndexedDB with a 24-hour expiry; API keys remain server-side.
+
+The Python 3.11 benchmark package freezes corpus selection, audio normalization, model settings, scoring, and v1.1 provenance. It validates licenses/consent, human reference slots, unique IDs, expected counts, and SHA-256 audio hashes before inference. The same audio is sent to Sahara, Groq-hosted Whisper large-v3, and Deepgram Nova-3, with raw outputs kept immutable and failures retained in aggregation. The repository currently passes 5 frontend tests, 10 benchmark tests, lint, TypeScript compilation, and a production build.
+
+## Ethics and inclusion answer
+
+Speech recognition can mishear names, numbers, negation, or code-switched language. Ìròyìn therefore exposes the original transcript, distinguishes reporter corrections, links report facts to evidence, asks for missing critical details, and requires explicit human verification. It does not decide whether an allegation is true, offer legal advice, or submit a complaint automatically. Audio is transmitted only after the user chooses to transcribe; cases remain browser-local and expire after 24 hours. The product lets users begin in Pidgin–English or Yorùbá–English without framing formal English as the only valid input, while clearly acknowledging that two language pairs do not represent every Nigerian or African speech community.
+
 ## Demo script (about 2 minutes 40 seconds)
 
 ### 0:00–0:20 — Problem
