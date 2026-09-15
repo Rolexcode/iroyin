@@ -5,6 +5,7 @@ import { useEffect } from "react";
 type VoiceLanguage = "pcm" | "yo" | "en";
 type TtsResponse = { audioUrl?: string; error?: { message?: string } };
 const MAX_SPOKEN_CHARS = 95;
+const TTS_CONCURRENCY = 3;
 
 function inferLanguage(text: string): VoiceLanguage {
   const lower = ` ${text.toLowerCase()} `;
@@ -53,9 +54,19 @@ async function requestNativeVoice(text: string, language: VoiceLanguage) {
 async function requestNativeVoiceWithRetry(text: string, language: VoiceLanguage) {
   try { return await requestNativeVoice(text, language); }
   catch {
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, 350));
     return requestNativeVoice(text, language);
   }
+}
+
+async function prepareVoiceChunks(chunks: string[], language: VoiceLanguage) {
+  const urls: string[] = [];
+  for (let start = 0; start < chunks.length; start += TTS_CONCURRENCY) {
+    const batch = chunks.slice(start, start + TTS_CONCURRENCY);
+    const batchUrls = await Promise.all(batch.map((chunk) => requestNativeVoiceWithRetry(chunk, language)));
+    urls.push(...batchUrls);
+  }
+  return urls;
 }
 
 export function VoicePlayback() {
@@ -105,9 +116,9 @@ export function VoicePlayback() {
         button.textContent = `Preparing ${name} voice…`;
 
         try {
-          // Intron currently needs short clips. Generate them concurrently rather than
-          // waiting for 1, then 2, then 3... while preserving their playback order.
-          const urls = await Promise.all(chunks.map((chunk) => requestNativeVoiceWithRetry(chunk, language)));
+          // Intron needs short clips. Keep a small amount of concurrency so long answers
+          // stay reasonably quick without flooding the TTS endpoint with every chunk at once.
+          const urls = await prepareVoiceChunks(chunks, language);
           if (disposed || run !== playbackRun) return;
 
           const audio = new Audio();
