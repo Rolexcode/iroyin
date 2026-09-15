@@ -9,7 +9,7 @@ type OutputStyle = ExplainStyle | ExpressStyle;
 type TransformBody = { text?: string; mode?: Mode; languagePair?: string; outputStyle?: OutputStyle };
 type GroqResult = { text: string; model: string };
 
-const GROQ_MODELS = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"] as const;
+const GROQ_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b"] as const;
 
 const PHRASES: Array<[RegExp, string]> = [
   [/\bwetin\b/gi,"what"],[/\bweytin\b/gi,"what"],[/\buna\b/gi,"you all"],[/\babeg\b/gi,"please"],[/\bdey\b/gi,"am"],[/\bfit\b/gi,"can"],[/\bno go\b/gi,"will not"],[/\bno be\b/gi,"is not"],[/\bna so\b/gi,"that is how"],[/\bna\b/gi,"is"],[/\bdem\b/gi,"they"],[/\bim\b/gi,"he"],[/\bhim\b/gi,"he"],[/\babi\b/gi,"right"],[/\bsha\b/gi,"though"],[/\bcon\b/gi,"then"],[/\bcommot\b/gi,"leave"],[/\bcomot\b/gi,"leave"],[/\bmake i\b/gi,"let me"],[/\bmake we\b/gi,"let us"],[/\bi wan\b/gi,"I want to"],[/\bi no\b/gi,"I do not"],[/\bi just dey\b/gi,"I am just"],[/\byou fit\b/gi,"you can"],[/\bgo fit\b/gi,"will be able to"],[/\be no\b/gi,"it does not"],[/\be dey\b/gi,"it is"],[/\bthis thing\b/gi,"this"],
