@@ -6,11 +6,19 @@ export const MAX_AUDIO_SECONDS = 120;
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 export const MAX_CLARIFICATIONS = 3;
 
+export const LANGUAGE_PAIR_VALUES = ["pcm_en", "yo_en", "ig_en"] as const satisfies readonly LanguagePair[];
+
+export const INTRON_LANGUAGE_CODES: Record<LanguagePair, "pcm" | "yo" | "ig"> = {
+  pcm_en: "pcm",
+  yo_en: "yo",
+  ig_en: "ig",
+};
+
 export const LANGUAGE_OPTIONS: Array<{
   value: LanguagePair;
   label: string;
   helper: string;
-  intronCode: "pcm" | "yo";
+  intronCode: "pcm" | "yo" | "ig";
 }> = [
   {
     value: "pcm_en",
@@ -23,6 +31,12 @@ export const LANGUAGE_OPTIONS: Array<{
     label: "Yorùbá + English",
     helper: "Yorùbá and English code-switching",
     intronCode: "yo",
+  },
+  {
+    value: "ig_en",
+    label: "Igbo + English · Preview",
+    helper: "Igbo and English code-switching; native-speaker evaluation pending",
+    intronCode: "ig",
   },
 ];
 

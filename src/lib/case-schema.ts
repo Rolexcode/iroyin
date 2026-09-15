@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LANGUAGE_PAIR_VALUES } from "./constants";
 
 export const factFieldSchema = z.enum([
   "incident_type",
@@ -34,7 +35,7 @@ export const iroyinCaseSchema = z.object({
   expiresAt: z.string().datetime(),
   stage: z.enum(["captured", "structured", "clarifying", "review", "verified"]),
   scenario: z.enum(["tenancy_housing", "infrastructure_hazard", "workplace_public_service"]),
-  languagePair: z.enum(["pcm_en", "yo_en"]),
+  languagePair: z.enum(LANGUAGE_PAIR_VALUES),
   transcript: z.string().min(1).max(50_000),
   transcriptProvider: z.enum(["sahara", "demo", "manual"]),
   transcriptFileId: z.string().min(1).max(300).optional(),

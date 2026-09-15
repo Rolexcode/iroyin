@@ -1,4 +1,5 @@
 import { readJsonSafely } from "../api";
+import { INTRON_LANGUAGE_CODES } from "../constants";
 import type { LanguagePair } from "../types";
 
 const INTRON_SYNC_URL = "https://infer.voice.intron.io/file/v1/upload/sync";
@@ -27,7 +28,7 @@ export type IntronResult = {
 };
 
 function languageCode(languagePair: LanguagePair) {
-  return languagePair === "yo_en" ? "yo" : "pcm";
+  return INTRON_LANGUAGE_CODES[languagePair];
 }
 
 function normalizePayload(payload: unknown, responseStatus: number): IntronResult {

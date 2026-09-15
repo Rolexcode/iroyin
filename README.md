@@ -2,7 +2,7 @@
 
 **Speak naturally. Leave a record you trust.**
 
-Ìròyìn is a voice-first public-service reporting assistant for Nigerian code-switched speech. A person can speak in Pidgin–English or Yorùbá–English, review Sahara by Intron's transcript, and then explain, express, or structure the account into a report they can correct, verify, export, and route through an official channel.
+Ìròyìn is a voice-first public-service reporting assistant for Nigerian code-switched speech. A person can speak in Pidgin–English, Yorùbá–English, or preview Igbo–English, review Sahara by Intron's transcript, and then explain, express, or structure the account into a report they can correct, verify, export, and route through an official channel.
 
 - Live app: https://iroyin.vercel.app
 - Track: Legal & Public Services
@@ -19,7 +19,7 @@ Public complaints often begin as speech, not a polished form. People who natural
 ## What works
 
 - Record up to two minutes or upload an audio file.
-- Transcribe Pidgin–English (`pcm`) and Yorùbá–English (`yo`) with Sahara.
+- Transcribe Pidgin–English (`pcm`), Yorùbá–English (`yo`), and preview Igbo–English (`ig`) with Sahara.
 - Preserve the original Sahara transcript and show any user correction separately.
 - Explain difficult speech in simple English, Pidgin–English, or Yorùbá–English.
 - Express the same thought in clear, academic, or professional English.
@@ -111,7 +111,8 @@ docs/                    product, benchmark, safety, and submission evidence
 
 ## Current limitations
 
-- The product currently supports two code-switched language pairs.
+- The product supports Pidgin–English and Yorùbá–English, with Igbo–English available as a preview pending native-speaker evaluation.
+- The frozen benchmark remains scoped to Pidgin–English and Yorùbá–English; it does not validate the Igbo preview.
 - The report extractor is deterministic and intentionally conservative; it is not a general fact-understanding model.
 - Cases exist only in the browser where they were created.
 - Official-channel suggestions are informational and must be checked by the reporter.

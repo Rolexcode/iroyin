@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api";
-import { ACCEPTED_AUDIO_TYPES, MAX_AUDIO_BYTES } from "@/lib/constants";
+import { ACCEPTED_AUDIO_TYPES, LANGUAGE_PAIR_VALUES, MAX_AUDIO_BYTES } from "@/lib/constants";
 import { transcribeWithSahara } from "@/lib/server/intron";
 
 export const runtime = "nodejs";
 export const maxDuration = 150;
 
-const languageSchema = z.enum(["pcm_en", "yo_en"]);
+const languageSchema = z.enum(LANGUAGE_PAIR_VALUES);
 
 function baseMimeType(type: string) {
   return type.split(";", 1)[0].trim().toLowerCase();

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api";
+import { LANGUAGE_PAIR_VALUES } from "@/lib/constants";
 import { extractWithLocalRules } from "@/lib/local-extractor";
 
 export const runtime = "nodejs";
@@ -8,7 +9,7 @@ export const maxDuration = 65;
 
 const bodySchema = z.object({
   transcript: z.string().trim().min(3).max(12_000),
-  languagePair: z.enum(["pcm_en", "yo_en"]),
+  languagePair: z.enum(LANGUAGE_PAIR_VALUES),
   transcriptProvider: z.enum(["sahara", "manual"]).default("manual"),
   transcriptFileId: z.string().optional(),
 });

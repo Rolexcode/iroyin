@@ -6,13 +6,13 @@
 
 ## Short description
 
-Ìròyìn is a voice-first public-service reporting assistant built on Sahara by Intron. People can speak naturally in Pidgin–English or Yorùbá–English, review exactly what Sahara heard, and choose to understand the meaning, express it more clearly, or structure it as an incident report. High-stakes reports preserve source evidence, ask for missing critical facts, require human verification, export to text or PDF, and show relevant official channels without submitting anything automatically.
+Ìròyìn is a voice-first public-service reporting assistant built on Sahara by Intron. People can speak naturally in Pidgin–English or Yorùbá–English, with Igbo–English available as a clearly labelled preview, review exactly what Sahara heard, and choose to understand the meaning, express it more clearly, or structure it as an incident report. High-stakes reports preserve source evidence, ask for missing critical facts, require human verification, export to text or PDF, and show relevant official channels without submitting anything automatically.
 
 ## Full description
 
 Many public complaints begin as a spoken account, but formal systems expect a polished written form. For people who naturally code-switch, that can mean translating themselves, changing how they speak, and remembering exact details under stress. Important facts can be lost before the complaint is even written.
 
-Ìròyìn is a voice-first public-service reporting assistant for Nigerian code-switched speech. A person records or uploads Pidgin–English or Yorùbá–English audio. Sahara by Intron transcribes that natural speech, and Ìròyìn immediately shows the transcript for review instead of treating model output as unquestionable truth.
+Ìròyìn is a voice-first public-service reporting assistant for Nigerian code-switched speech. A person records or uploads Pidgin–English, Yorùbá–English, or preview Igbo–English audio. Sahara by Intron transcribes that natural speech, and Ìròyìn immediately shows the transcript for review instead of treating model output as unquestionable truth.
 
 From the checked transcript, the speaker can choose one of three paths. Explain makes difficult language easier to understand. Express rewrites the same thought in clear, academic, or professional English. Report structures a higher-stakes account into an incident record. The report flow links extracted facts back to transcript evidence, identifies missing critical details, asks targeted clarification, allows corrections, and requires the reporter to verify the final record. Only then can they copy it, export a PDF, or view matched official channels. Ìròyìn never submits a complaint automatically.
 
@@ -32,7 +32,7 @@ The application is a working Next.js prototype deployed on Vercel. API keys stay
 
 ## Technical execution answer
 
-Ìròyìn is a Next.js 16 and React 19 application deployed on Vercel. Audio is sent as multipart form data from the browser to a server-only transcription route, which maps the selected Pidgin–English or Yorùbá–English pair to Sahara's `pcm` or `yo` input, handles both synchronous and queued responses, and polls a validated provider file ID. The original Sahara transcript is preserved separately from reporter corrections.
+Ìròyìn is a Next.js 16 and React 19 application deployed on Vercel. Audio is sent as multipart form data from the browser to a server-only transcription route, which maps Pidgin–English, Yorùbá–English, and preview Igbo–English to Sahara's documented `pcm`, `yo`, and `ig` inputs, handles both synchronous and queued responses, and polls a validated provider file ID. The original Sahara transcript is preserved separately from reporter corrections. The frozen benchmark remains limited to Pidgin and Yorùbá.
 
 The Report path uses deterministic local extraction so unsupported details are not invented. Extracted facts keep exact transcript evidence spans; critical fields are derived from the incident scenario; missing fields trigger bounded clarification; corrections invalidate prior verification. Zod schemas validate complete case records again on server routes, and PDF export is refused unless required facts are present and the reporter has verified the record. Cases and audio blobs stay in browser IndexedDB with a 24-hour expiry; API keys remain server-side.
 
@@ -40,7 +40,7 @@ The Python 3.11 benchmark package freezes corpus selection, audio normalization,
 
 ## Ethics and inclusion answer
 
-Speech recognition can mishear names, numbers, negation, or code-switched language. Ìròyìn therefore exposes the original transcript, distinguishes reporter corrections, links report facts to evidence, asks for missing critical details, and requires explicit human verification. It does not decide whether an allegation is true, offer legal advice, or submit a complaint automatically. Audio is transmitted only after the user chooses to transcribe; cases remain browser-local and expire after 24 hours. The product lets users begin in Pidgin–English or Yorùbá–English without framing formal English as the only valid input, while clearly acknowledging that two language pairs do not represent every Nigerian or African speech community.
+Speech recognition can mishear names, numbers, negation, or code-switched language. Ìròyìn therefore exposes the original transcript, distinguishes reporter corrections, links report facts to evidence, asks for missing critical details, and requires explicit human verification. It does not decide whether an allegation is true, offer legal advice, or submit a complaint automatically. Audio is transmitted only after the user chooses to transcribe; cases remain browser-local and expire after 24 hours. The product lets users begin in Pidgin–English or Yorùbá–English without framing formal English as the only valid input. Igbo–English input is labelled as a preview until it receives native-speaker evaluation and benchmark coverage.
 
 ## Demo script (about 2 minutes 40 seconds)
 

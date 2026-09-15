@@ -14,7 +14,7 @@ export default function Home() {
       <aside className="workspace-intro" aria-labelledby="workspace-title">
         <p className="section-kicker">Made for the way you speak</p>
         <h1 id="workspace-title">Speak naturally.<br /><span>Leave a record you trust.</span></h1>
-        <p className="workspace-description">Turn Yoruba- or Pidgin-English speech into a checked transcript, a clearer explanation, or a verified incident report.</p>
+        <p className="workspace-description">Turn Pidgin-, Yorùbá-, or preview Igbo-English speech into a checked transcript, a clearer explanation, or a verified incident report.</p>
         <div className="outcome-list" aria-label="What you can do after speaking">
           {outcomes.map(({ icon: Icon, title, copy }) => (
             <div className="outcome-item" key={title}>

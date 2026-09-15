@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { iroyinCaseSchema } from "./case-schema";
+import { INTRON_LANGUAGE_CODES, LANGUAGE_OPTIONS, LANGUAGE_PAIR_VALUES } from "./constants";
 import { createDemoCase } from "./demo-data";
 import { applyClarification, applyFactCorrection, evidenceFor, verifyCase } from "./incident";
 
 describe("incident evidence and verification", () => {
+  it("keeps Igbo input consistent across the UI, schemas, and Sahara code", () => {
+    expect(LANGUAGE_PAIR_VALUES).toContain("ig_en");
+    expect(INTRON_LANGUAGE_CODES.ig_en).toBe("ig");
+    expect(LANGUAGE_OPTIONS.find((option) => option.value === "ig_en")?.label).toContain("Preview");
+
+    const igboCase = { ...createDemoCase(), languagePair: "ig_en" };
+    expect(iroyinCaseSchema.safeParse(igboCase).success).toBe(true);
+  });
+
   it("locates an evidence quote without changing the source casing", () => {
     expect(evidenceFor("Cable dey BURN near am", "cable dey burn")).toEqual({
       quote: "Cable dey BURN",

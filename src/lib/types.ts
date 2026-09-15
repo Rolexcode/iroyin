@@ -1,4 +1,4 @@
-export type LanguagePair = "pcm_en" | "yo_en";
+export type LanguagePair = "pcm_en" | "yo_en" | "ig_en";
 
 export type Scenario =
   | "tenancy_housing"

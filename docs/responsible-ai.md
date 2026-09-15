@@ -14,7 +14,7 @@
 
 ## Inclusion
 
-Ìròyìn lets a person begin in Pidgin–English or Yorùbá–English rather than requiring formal English at the point of capture. The interface separates speech recognition from the user's chosen output: the same checked transcript can be explained in a familiar language mix or expressed in a formal register without implying that one way of speaking is more valid than another. The prototype is explicit that two supported pairs do not represent all Nigerian or African speech communities; additional languages require community-informed testing and native-speaker evaluation before release.
+Ìròyìn lets a person begin in Pidgin–English, Yorùbá–English, or preview Igbo–English rather than requiring formal English at the point of capture. The interface separates speech recognition from the user's chosen output: the same checked transcript can be explained in a familiar language mix or expressed in a formal register without implying that one way of speaking is more valid than another. Igbo input is explicitly labelled as a preview pending community-informed testing and native-speaker evaluation.
 
 ## Data handling
 
@@ -31,7 +31,7 @@
 
 ## Model and language limitations
 
-The prototype currently supports Pidgin–English and Yorùbá–English speech input. Speech recognition and semantic transformation can mishear, mistranslate, omit, or over-normalize language. Deterministic incident extraction is intentionally conservative but can still miss facts or classify them incorrectly. Explain/Express may use a hosted Groq model; if unavailable, a limited local fallback is used and labelled by the returned engine.
+The prototype supports Pidgin–English and Yorùbá–English speech input, with Igbo–English available as an unbenchmarked preview. Speech recognition and semantic transformation can mishear, mistranslate, omit, or over-normalize language. Deterministic incident extraction is intentionally conservative but can still miss facts or classify them incorrectly. Explain/Express may use a hosted Groq model; if unavailable, a limited local fallback is used and labelled by the returned engine. Explain and text-to-speech output languages remain English, Pidgin, and Yorùbá.
 
 ## Evaluation integrity
 
